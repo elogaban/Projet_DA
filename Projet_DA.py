@@ -228,7 +228,6 @@ filepath_troisieme = "https://ourworldindata.org/grapher/annual-temperature-anom
 # Appel de la fonction pour créer le graphique
 create_temperature_graph(filepath_troisieme)
 
-# --- Quatrième graphique (carte mondiale animée) ---
 # Lecture des données depuis une URL.
 df_carte = pd.read_csv(
     "https://ourworldindata.org/grapher/annual-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true",
@@ -245,7 +244,7 @@ fig_carte = px.choropleth(
     hover_name="Entity",
     animation_frame="Year",
     range_color=[-2, 2],
-    labels={'temperature_anomaly':'Anomalie de température (°C)', 'Year':'Année'},
+    labels={'temperature_anomaly': 'Anomalie de température (°C)', 'Year': 'Année'},
     color_continuous_scale="RdBu_r",
     projection="natural earth"
 )
@@ -261,13 +260,11 @@ fig_carte.update_layout(
         showocean=True,
         oceancolor="LightBlue"
     ),
-    title={
-        'text': "<b>Anomalies de Température Annuelles</b><br><sup>Différence par rapport à la moyenne 1991-2020</sup>",
-        'y':0.95,
-        'x':0.45,
-        'xanchor': 'center',
-        'font': {'size': 24, 'family': "Arial"}
-    },
+    title_text="<b>Anomalies de Température Annuelles</b><br><sup>Différence par rapport à la moyenne 1991-2020</sup>",
+    title_x=0.45,
+    title_y=0.95,
+    title_xanchor='center',
+    title_font=dict(size=24, family="Arial"),
     coloraxis_colorbar=dict(
         title="Anomalie (°C)",
         thicknessmode="pixels",
@@ -278,7 +275,7 @@ fig_carte.update_layout(
         tickfont=dict(size=14),
         titlefont=dict(size=16)
     ),
-    margin={"r":0,"t":80,"l":0,"b":0},
+    margin={"r": 0, "t": 80, "l": 0, "b": 0},
     paper_bgcolor='rgba(0,0,0,0)',
     plot_bgcolor='rgba(0,0,0,0)'
 )
