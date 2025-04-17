@@ -260,11 +260,13 @@ fig_carte.update_layout(
         showocean=True,
         oceancolor="LightBlue"
     ),
-    title_text="<b>Anomalies de Température Annuelles</b><br><sup>Différence par rapport à la moyenne 1991-2020</sup>",
-    title_x=0.45,
-    title_y=0.95,
-    title_xanchor='center',
-    title_font=dict(size=24, family="Arial"),
+    title=dict(
+        text="<b>Anomalies de Température Annuelles</b><br><sup>Différence par rapport à la moyenne 1991-2020</sup>",
+        x=0.45,
+        y=0.95,
+        xanchor='center',
+        font=dict(size=24, family="Arial")
+    ),
     coloraxis_colorbar=dict(
         title="Anomalie (°C)",
         thicknessmode="pixels",
