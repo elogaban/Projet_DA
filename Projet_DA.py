@@ -228,15 +228,17 @@ filepath_troisieme = "https://ourworldindata.org/grapher/annual-temperature-anom
 # Appel de la fonction pour créer le graphique
 create_temperature_graph(filepath_troisieme)
 
+# --- Quatrième graphique (carte mondiale animée) ---
 # Lecture des données depuis une URL.
 df_carte = pd.read_csv(
     "https://ourworldindata.org/grapher/annual-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true",
     storage_options={'User-Agent': 'Our World In Data data fetch/1.0'}
 )
-# Convertir la colonne 'Year' en numérique
-df_carte['Year'] = pd.to_numeric(df_carte['Year'])
 
-# Création d'une carte mondiale animée.
+# Convertir la colonne 'Year' en numérique
+df_carte['Year'] = pd.to_numeric(df_carte['Year'], errors='coerce')
+
+# Création de la carte mondiale animée avec Plotly Express
 fig_carte = px.choropleth(
     df_carte,
     locations="Code",
@@ -249,7 +251,7 @@ fig_carte = px.choropleth(
     projection="natural earth"
 )
 
-# Personnalisation de l'affichage de la carte.
+# Mise à jour de la mise en page
 fig_carte.update_layout(
     geo=dict(
         showframe=False,
@@ -268,16 +270,18 @@ fig_carte.update_layout(
         font=dict(size=24, family="Arial")
     ),
     coloraxis_colorbar=dict(
-        title="Anomalie (°C)",
+        title=dict(
+            text="Anomalie (°C)",
+            font=dict(size=16)
+        ),
         thicknessmode="pixels",
         thickness=20,
         len=0.7,
         yanchor="top",
         y=0.9,
-        tickfont=dict(size=14),
-        titlefont=dict(size=16)
+        tickfont=dict(size=14)
     ),
-    margin={"r": 0, "t": 80, "l": 0, "b": 0},
+    margin=dict(r=0, t=80, l=0, b=0),
     paper_bgcolor='rgba(0,0,0,0)',
     plot_bgcolor='rgba(0,0,0,0)'
 )
@@ -285,5 +289,5 @@ fig_carte.update_layout(
 # Ajout de bordures aux pays sur la carte.
 fig_carte.update_traces(marker_line_width=0.5, marker_line_color="DarkSlateGrey")
 
-# Affichage du quatrième graphique avec Streamlit
+# Affichage du graphique avec Streamlit
 st.plotly_chart(fig_carte)
