@@ -5,7 +5,7 @@ import plotly.express as px
 
 # --- Premier graphique (inchangé) ---
 # Titre du graphique et des axes
-title_text_mer = "Anomalies annuelles de la température de la surface de la mer"
+title_text_mer = "Anomalies annuelles de la température de la surface des océans"
 xaxis_title_mer = "Année"
 yaxis_title_mer = "Anomalie de température (°C)"
 
