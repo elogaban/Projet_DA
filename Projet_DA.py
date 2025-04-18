@@ -169,7 +169,8 @@ st.markdown("""
 Le dataset utilisé pour ce graphique est la combinaison de 3 datasets : un par région observée (Monde, Hémisphère Nord, Hémisphère Sud). <br>
 Le graphique présente les anomalies combinées de température de l'air à la surface terrestre et de l'eau à la surface de la mer, <br>
 c'est-à-dire les écarts par rapport aux moyennes correspondantes de 1951 à 1980. <br>
-Le graphique confirme in réchauffement plus rapide de l'hémisphère Nord depuis 2013.
+Le graphique confirme un réchauffement plus rapide de l'hémisphère Nord depuis 2013, ce réchauffement est accentué par les températures relevées à la surface terrestre. <br>
+<br>
 """, unsafe_allow_html=True)
 
 # --- Troisième graphique (titre à gauche) ---
