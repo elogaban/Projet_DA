@@ -319,5 +319,5 @@ st.caption("Source : https://ourworldindata.org/")
 st.markdown("""
 Les deux graphiques utilisent la même source de données. <br>
 Ils montrent la différence entre la température moyenne de surface d'une année et la moyenne de 1991 à 2020, en degrés Celsius. <br>
-
+<br>
 """, unsafe_allow_html=True)
