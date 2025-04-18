@@ -3,8 +3,8 @@ import plotly.graph_objects as go
 import pandas as pd
 import plotly.express as px
 
-st.title("Projet DA : températures terestres")
-st.write("Quelques exemples de visuels")
+st.title("Projet DA : températures terrestres")
+st.header("Quelques exemples de visuels")
 # --- Premier graphique (inchangé) ---
 # Titre du graphique et des axes
 title_text_mer = "Anomalies annuelles de la température de la surface des océans"
