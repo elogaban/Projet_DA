@@ -73,7 +73,7 @@ fig_mer.update_xaxes(
 st.plotly_chart(fig_mer)
 
 
-st.caption("Source : https://ourworldindata.org/)
+st.caption("Source : https://ourworldindata.org/")
            
 st.markdown("""
 Le graphique donne les anomalies annuelles de la température de la surface de la mer par rapport à la période préindustrielle pour le Monde, l'Hémisphère Nord, <br>
