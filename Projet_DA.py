@@ -70,6 +70,8 @@ fig_mer.update_xaxes(
 # Affichage du premier graphique avec Streamlit
 st.plotly_chart(fig_mer)
 
+st.write("Ce graphique montre que les océans de l'hémisphère Nord se réchauffent plus vite que ceux de l'hémisphère Sud depuis la fin des années 90")
+
 # --- Deuxième graphique (ressemblant au premier) ---
 # Chargement des 3 datasets
 def load_and_prepare_terre(url, region):
@@ -109,7 +111,7 @@ fig_terre.add_trace(go.Scatter(x=northern_hemisphere_data_terre['Year'], y=north
 fig_terre.add_trace(go.Scatter(x=southern_hemisphere_data_terre['Year'], y=southern_hemisphere_data_terre['J-D'],
                             mode='lines', name='Hémisphère Sud', line=dict(color='forestgreen', width=2, dash='dot')))
 
-# Mise à jour de la mise en page du graphique (copie de la mise en page du premier graphique)
+# Mise à jour de la mise en page du graphique
 fig_terre.update_layout(
     title=title_text_terre,
     xaxis_title=xaxis_title_terre,
