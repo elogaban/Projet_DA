@@ -70,8 +70,11 @@ fig_mer.update_xaxes(
 # Affichage du premier graphique avec Streamlit
 st.plotly_chart(fig_mer)
 
-st.caption(Source : https://data.giss.nasa.gov/gistemp/)
-st.write("Ce graphique montre que les océans de l'hémisphère Nord se réchauffent plus vite que ceux de l'hémisphère Sud depuis 2013.")
+st.caption("Source : https://data.giss.nasa.gov/gistemp/")
+st.write("Le dataset utilisé pour ce graphique est la combinaison de 3 datasets : un par région observée (Monde, Héisphère Nord, Hémisphère Sud).")
+st.write("Les données représentent la différence entre la température moyenne de la surface de la mer et la moyenne de 1861 à 1890, en degrés Celsius,
+mesuré à une profondeur de 20 centimètres pour l'hémisphère Nord, l'hémisphère Sud et le monde.")
+st.write("Le graphique montre que les océans de l'hémisphère Nord se réchauffent plus vite que ceux de l'hémisphère Sud depuis 2013. ")
 
 # --- Deuxième graphique (ressemblant au premier) ---
 # Chargement des 3 datasets
