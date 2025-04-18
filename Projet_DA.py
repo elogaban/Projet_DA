@@ -70,7 +70,8 @@ fig_mer.update_xaxes(
 # Affichage du premier graphique avec Streamlit
 st.plotly_chart(fig_mer)
 
-st.write("Ce graphique montre que les océans de l'hémisphère Nord se réchauffent plus vite que ceux de l'hémisphère Sud depuis la fin des années 90")
+st.caption(Source : https://data.giss.nasa.gov/gistemp/)
+st.write("Ce graphique montre que les océans de l'hémisphère Nord se réchauffent plus vite que ceux de l'hémisphère Sud depuis 2013.")
 
 # --- Deuxième graphique (ressemblant au premier) ---
 # Chargement des 3 datasets
