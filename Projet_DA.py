@@ -74,8 +74,7 @@ st.caption("Source : https://data.giss.nasa.gov/gistemp/")
 
 st.markdown("""
 Le dataset utilisé pour ce graphique est la combinaison de 3 datasets : un par région observée (Monde, Hémisphère Nord, Hémisphère Sud). <br>
-Les données représentent la différence entre la température moyenne de la surface de la mer et la moyenne de 1861 à 1890, en degrés Celsius, <br>
-mesuré à une profondeur de 20 centimètres pour l'hémisphère Nord, l'hémisphère Sud et le monde. <br>
+Les données représentent la différence entre la température moyenne de la surface de la mer et la moyenne de 1861 à 1890, en degrés Celsius, mesuré à une profondeur de 20 centimètres pour l'hémisphère Nord, l'hémisphère Sud et le monde. <br>
 Le graphique montre que les océans de l'hémisphère Nord se réchauffent plus vite que ceux de l'hémisphère Sud depuis 2013.
 """, unsafe_allow_html=True)
 
