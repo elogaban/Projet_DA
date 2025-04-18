@@ -72,10 +72,12 @@ fig_mer.update_xaxes(
 # Affichage du premier graphique avec Streamlit
 st.plotly_chart(fig_mer)
 
-st.caption("Source : https://data.giss.nasa.gov/gistemp/")
 
+st.caption("Source : https://ourworldindata.org/)
+           
 st.markdown("""
-Le dataset utilisé pour ce graphique est la combinaison de 3 datasets : un par région observée (Monde, Hémisphère Nord, Hémisphère Sud). <br>
+Le graphique donne les anomalies annuelles de la température de la surface de la mer par rapport à la période préindustrielle pour le Monde, l'Hémisphère Nord, <br>
+et l'Hémisphère Sud). <br>
 Les données représentent la différence entre la température moyenne de la surface de la mer et la moyenne de 1861 à 1890, en degrés Celsius, mesuré à une profondeur de 20 centimètres pour l'hémisphère Nord, l'hémisphère Sud et le monde. <br>
 Le graphique montre que les océans de l'hémisphère Nord se réchauffent plus vite que ceux de l'hémisphère Sud depuis 2013.
 """, unsafe_allow_html=True)
@@ -160,6 +162,15 @@ fig_terre.update_xaxes(
 
 # Affichage du deuxième graphique avec Streamlit
 st.plotly_chart(fig_terre)
+
+st.caption("Source : https://data.giss.nasa.gov/gistemp/")
+
+st.markdown("""
+Le dataset utilisé pour ce graphique est la combinaison de 3 datasets : un par région observée (Monde, Hémisphère Nord, Hémisphère Sud). <br>
+Le graphique présente les anomalies combinées de température de l'air à la surface terrestre et de l'eau à la surface de la mer, <br>
+c'est-à-dire les écarts par rapport aux moyennes correspondantes de 1951 à 1980. <br>
+Le graphique confirme in réchauffement plus rapide de l'hémisphère Nord depuis 2013.
+""", unsafe_allow_html=True)
 
 # --- Troisième graphique (titre à gauche) ---
 # Fonction pour créer un graphique des anomalies de température
