@@ -354,5 +354,4 @@ fig = px.choropleth(df_filtered,
                     title="Évolution du CO2 per capita par pays")
  
 # Afficher le graphique
-fig.show()
-
+st.plotly_chart(fig)
