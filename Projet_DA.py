@@ -355,3 +355,13 @@ fig = px.choropleth(df_filtered,
  
 # Afficher le graphique
 st.plotly_chart(fig)
+
+st.caption("Source : https://ourworldindata.org/")
+           
+st.markdown("""
+Ce graphique montre l’évolution des émissions de CO2 par pays par habitant au cours du temps. <br>
+On voit que les émissions ont beaucoup évolué au cours du temps mais que la majorité concerne l’hémisphère nord. <br>
+Les pays occidentaux ont longtemps été en tête puis une augmentation se voit en Asie et dernièrement c’est l’Arabie <br>
+Saoudite qui à la plus forte émission par habitant. <br>
+""", unsafe_allow_html=True)
+
