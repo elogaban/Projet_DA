@@ -2,6 +2,9 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import plotly.express as px
+import requests
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 st.title("Projet DA : températures terrestres")
 st.header("Quelques exemples de visuels")
@@ -321,3 +324,72 @@ Les deux graphiques utilisent la même source de données. <br>
 Ils montrent la différence entre la température moyenne de surface d'une année et la moyenne de 1991 à 2020, en degrés Celsius. <br>
 <br>
 """, unsafe_allow_html=True)
+
+# Cinquième graphique
+entities = [
+    "Europe",
+    "North America",
+    "Asia",
+    "China",
+    "Russia"
+]
+
+# Filtrer les entités et les années
+df_grouped = df[df['Entity'].isin(entities)].copy()
+df_grouped = df_grouped[df_grouped['Year'] >= 1940]
+
+plt.figure(figsize=(8, 5))
+
+# Create a color palette using tab10
+palette = sns.color_palette("tab10", n_colors=len(entities))
+
+# Fossil fuels and Land Use on the same plot
+sns.lineplot(
+    data=df_grouped,
+    x='Year',
+    y='temperature_response_ghg_fossil',
+    linewidth=2,
+    label='Fossil Fuels',
+    color='yellow'  # Using a single color for Fossil Fuels
+)
+sns.lineplot(
+    data=df_grouped,
+    x='Year',
+    y='temperature_response_ghg_land',
+    linewidth=2,
+    linestyle='--',
+    label='Land Use',
+    color='grey' # Using a single color for Land Use
+)
+
+for i, entity in enumerate(entities):
+    sns.lineplot(
+        data=df_grouped[df_grouped['Entity'] == entity],
+        x='Year',
+        y='temperature_response_ghg_fossil',
+        color=palette[i],
+        linewidth=2,
+        label=entity # Adding the name of the entity as the label
+    )
+    sns.lineplot(
+        data=df_grouped[df_grouped['Entity'] == entity],
+        x='Year',
+        y='temperature_response_ghg_land',
+        color=palette[i],
+        linewidth=2,
+        linestyle='--',
+    )
+
+plt.title("Contribution au réchauffement climatique par région (1900-2022)", fontsize=10)
+plt.xlabel("Année", fontsize=12)
+plt.ylabel("Réchauffement estimé (°C)", fontsize=12)
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tick_params(axis='both', labelsize=10)
+
+handles, labels = plt.gca().get_legend_handles_labels()
+by_label = dict(zip(labels, handles))
+plt.legend(by_label.values(), by_label.keys(), loc='right', ncol=4, frameon=False, bbox_to_anchor=(0.5, 1.10), fontsize=6)
+
+plt.tight_layout()
+plt.show()
+
