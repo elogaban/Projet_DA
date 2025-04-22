@@ -371,6 +371,50 @@ Les pays occidentaux ont longtemps été en tête puis une augmentation se voit 
 Saoudite qui à la plus forte émission par habitant. <br>
 """, unsafe_allow_html=True)
 
+# Neuvième graphique
+### Émission mondiale de CO2 par habitant (Carte choroplèthe) ###
+st.header("Émissions mondiales de CO2 par habitant au fil du temps")
+st.write("Cette carte montre l'évolution des émissions annuelles de CO2 par habitant par pays depuis 1950.")
+
+if not world_co2_data.empty:
+    fig_co2_per_capita_map = px.choropleth(world_co2_data, locations='iso_code', color='co2_per_capita',
+                                           animation_frame='year',
+                                           hover_name='country',
+                                           color_continuous_scale='pubu',
+                                           projection='natural earth',
+                                           title='Émission mondiale de CO2 par habitant (en tonnes)',
+                                           range_color=(0, world_co2_data['co2_per_capita'].quantile(0.95))) # Utiliser un quantile
+
+    fig_co2_per_capita_map.update_layout(geo=dict(showframe=False, showcoastlines=False),
+                                        title=dict(x=0.5, font=dict(size=20)),
+                                        height=600)
+    fig_co2_per_capita_map.update_coloraxes(colorbar=dict(x=1, y=0.5, len=1, tickfont=dict(size=10), title="CO2 (Tonnes)"))
+
+    st.plotly_chart(fig_co2_per_capita_map, use_container_width=True)
+else:
+     st.warning("Aucune donnée disponible pour afficher la carte des émissions de CO2 par habitant.")
+
+st.caption("Source : https://ourworldindata.org/")
+
+st.markdown("""
+En observant la carte interactive des émissions de CO2 par habitant de 1950 à 2023, nous pouvons remarquer rapidement que les pays ayant les émissions <br>
+de CO2 par habitant les plus élevées sont les États-Unis, le Canada, l'Australie, mais aussi - il vaut mieux zoomer pour les voir - les pays du golf <br>
+persique (Qatar, Koweït, Emirats Arabes Unis, Oman et Arabie saoudite). Cependant, si l'on compare les émissions de CO2 par habitant entre les pays <br>
+à différents moments du temps, il est également possible de voir des changements importants. Par exemple, nous pouvons constater que certains pays <br>
+ont réduit leurs émissions de CO2 par habitant au fil du temps (ex: UK, Allemagne, Belgique, France) . Cette baisse peut être due à des efforts pour <br>
+favoriser la production d'énergie renouvelable et réduire la consommation d'énergie fossile. <br>
+<br>
+En revanche, certaines régions ont connu une augmentation rapide de leurs émissions de CO2 par habitant au cours des dernières décennies. <br>
+C'est le cas notamment de l'Asie, où plusieurs économies en développement ont connu une croissance rapide de leur émission de CO2 par habitant <br>
+depuis les années 1980. Cette évolution reflète une industrialisation rapide et une croissance économique rapide dans la région. <br>
+<br>
+Cependant, si l'on compare les émissions de CO2 par habitant des différentes régions du monde, on peut noter que l'Amérique du Nord, l'Europe et l'Asie <br>
+ont tendance à avoir des émissions de CO2 par habitant plus élevées que d'autres régions, du moins jusqu'à récemment. Le niveau de développement <br>
+économique, les modes de consommation, les habitudes de transport, la composition de l'énergie et les politiques environnementales sont <br>
+des facteurs qui peuvent expliquer ces différences régionales. <br>
+""", unsafe_allow_html=True)
+
+
 # sixième graphique
 
 # Configuration de la page Streamlit
@@ -458,48 +502,6 @@ et à l'augmentation de la demande d'énergie pour les transports, la production
 Cependant, il existe également des différences régionales dans les émissions de CO2. <br>
 L'Amérique du Nord, l'Europe et l'Asie ont des émissions plus élevées que l'Afrique et l'Amérique latine. <br>
 Cela peut être dû à des facteurs tels que les niveaux de développement économique, les politiques environnementales et les sources d'énergie employées. <br>
-""", unsafe_allow_html=True)
-# Neuvième graphique
-### Émission mondiale de CO2 par habitant (Carte choroplèthe) ###
-st.header("Émissions mondiales de CO2 par habitant au fil du temps")
-st.write("Cette carte montre l'évolution des émissions annuelles de CO2 par habitant par pays depuis 1950.")
-
-if not world_co2_data.empty:
-    fig_co2_per_capita_map = px.choropleth(world_co2_data, locations='iso_code', color='co2_per_capita',
-                                           animation_frame='year',
-                                           hover_name='country',
-                                           color_continuous_scale='pubu',
-                                           projection='natural earth',
-                                           title='Émission mondiale de CO2 par habitant (en tonnes)',
-                                           range_color=(0, world_co2_data['co2_per_capita'].quantile(0.95))) # Utiliser un quantile
-
-    fig_co2_per_capita_map.update_layout(geo=dict(showframe=False, showcoastlines=False),
-                                        title=dict(x=0.5, font=dict(size=20)),
-                                        height=600)
-    fig_co2_per_capita_map.update_coloraxes(colorbar=dict(x=1, y=0.5, len=1, tickfont=dict(size=10), title="CO2 (Tonnes)"))
-
-    st.plotly_chart(fig_co2_per_capita_map, use_container_width=True)
-else:
-     st.warning("Aucune donnée disponible pour afficher la carte des émissions de CO2 par habitant.")
-
-st.caption("Source : https://ourworldindata.org/")
-
-st.markdown("""
-En observant la carte interactive des émissions de CO2 par habitant de 1950 à 2023, nous pouvons remarquer rapidement que les pays ayant les émissions <br>
-de CO2 par habitant les plus élevées sont les États-Unis, le Canada, l'Australie, mais aussi - il vaut mieux zoomer pour les voir - les pays du golf <br>
-persique (Qatar, Koweït, Emirats Arabes Unis, Oman et Arabie saoudite). Cependant, si l'on compare les émissions de CO2 par habitant entre les pays <br>
-à différents moments du temps, il est également possible de voir des changements importants. Par exemple, nous pouvons constater que certains pays <br>
-ont réduit leurs émissions de CO2 par habitant au fil du temps (ex: UK, Allemagne, Belgique, France) . Cette baisse peut être due à des efforts pour <br>
-favoriser la production d'énergie renouvelable et réduire la consommation d'énergie fossile. <br>
-<br>
-En revanche, certaines régions ont connu une augmentation rapide de leurs émissions de CO2 par habitant au cours des dernières décennies. <br>
-C'est le cas notamment de l'Asie, où plusieurs économies en développement ont connu une croissance rapide de leur émission de CO2 par habitant <br>
-depuis les années 1980. Cette évolution reflète une industrialisation rapide et une croissance économique rapide dans la région. <br>
-<br>
-Cependant, si l'on compare les émissions de CO2 par habitant des différentes régions du monde, on peut noter que l'Amérique du Nord, l'Europe et l'Asie <br>
-ont tendance à avoir des émissions de CO2 par habitant plus élevées que d'autres régions, du moins jusqu'à récemment. Le niveau de développement <br>
-économique, les modes de consommation, les habitudes de transport, la composition de l'énergie et les politiques environnementales sont <br>
-des facteurs qui peuvent expliquer ces différences régionales. <br>
 """, unsafe_allow_html=True)
 
 
