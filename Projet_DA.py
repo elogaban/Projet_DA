@@ -366,3 +366,285 @@ Les pays occidentaux ont longtemps été en tête puis une augmentation se voit 
 Saoudite qui à la plus forte émission par habitant. <br>
 """, unsafe_allow_html=True)
 
+# sixième graphique
+import streamlit as st
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import seaborn as sns
+import plotly.express as px
+
+# Configuration de la page Streamlit
+st.set_page_config(layout="wide", page_title="Analyse des émissions de CO2 mondiales")
+
+st.title("Analyse des émissions de CO2 mondiales")
+st.write("Visualisation des données sur les émissions de CO2 provenant de Our World in Data.")
+
+# URL brute du fichier CSV dans GitHub
+url = 'https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv'
+
+# Utilisation de st.cache_data pour mettre en cache le chargement et le prétraitement des données
+@st.cache_data
+def load_and_preprocess_data(url):
+    """Charge les données et effectue un prétraitement initial."""
+    df = pd.read_csv(url)
+
+    # Colonnes à garder dans le fichier
+    colonnes_a_garder = ['country', 'year', 'iso_code', 'population', 'gdp',
+                         'co2', 'co2_per_capita',
+                         'methane', 'nitrous_oxide',
+                         'cumulative_gas_co2', 'cumulative_oil_co2','cumulative_flaring_co2','cumulative_coal_co2','cumulative_other_co2',
+                         'temperature_change_from_ch4', 'temperature_change_from_co2',
+                         'temperature_change_from_ghg', 'temperature_change_from_n2o']
+    df = df[colonnes_a_garder].copy()
+
+    # Les pays (lignes) à retirer du fichier (Pays qui n'en sont pas en fait !)
+    A_retirer = ['Africa (GCP)', 'Asia (GCP)',
+           'Asia (excl. China and India)', 'Central America (GCP)',
+           'Europe (GCP)', 'Europe (excl. EU-27)', 'Europe (excl. EU-28)',
+           'European Union (27)', 'European Union (28)',
+           'High-income countries',
+           'International aviation', 'International shipping',
+           'International transport','Kuwaiti Oil Fires', 'Kuwaiti Oil Fires (GCP)',
+           'Least developed countries (Jones et al. 2023)',
+           'Low-income countries', 'Lower-middle-income countries',
+           'Middle East (GCP)', 'Non-OECD (GCP)',
+           'North America (GCP)', 'North America (excl. USA)', 'OECD (GCP)',
+           'OECD (Jones et al.)', 'Oceania (GCP)',
+           'Ryukyu Islands (GCP)',
+           'South America (GCP)',
+           'Upper-middle-income countries']
+    df = df.loc[~df['country'].isin(A_retirer)]
+
+    return df
+
+# Chargement des données
+df = load_and_preprocess_data(url)
+
+# Filtrer les données pour les cartes choroplèthes (souvent moins de données anciennes)
+world_co2_data = df.loc[df['year'] >= 1950].copy() # Utiliser .copy() pour éviter SettingWithCopyWarning
+
+### Émission mondiale de CO2 (Carte choroplèthe) ###
+st.header("Émissions mondiales de CO2 par pays au fil du temps")
+st.write("Cette carte montre l'évolution des émissions annuelles de CO2 par pays depuis 1950.")
+
+if not world_co2_data.empty:
+    fig_co2_map = px.choropleth(world_co2_data, locations='iso_code', color='co2',
+                                animation_frame='year',
+                                hover_name='country',
+                                color_continuous_scale='pubu',
+                                projection='natural earth',
+                                title='Émissions mondiales de CO2 (en Mt)',
+                                range_color=(0, world_co2_data['co2'].quantile(0.95))) # Utiliser un quantile pour une meilleure visualisation
+
+    fig_co2_map.update_layout(geo=dict(showframe=False, showcoastlines=False),
+                              title=dict(x=0.5, font=dict(size=20)),
+                              height=600) # Ajuster la hauteur pour Streamlit
+    fig_co2_map.update_coloraxes(colorbar=dict(x=1, y=0.5, len=1, tickfont=dict(size=10), title="CO2 (Mt)"))
+
+    st.plotly_chart(fig_co2_map, use_container_width=True)
+else:
+    st.warning("Aucune donnée disponible pour afficher la carte des émissions de CO2.")
+
+
+### Émissions de CO2 par continent (Bar plot) ###
+st.header("Émissions totales de CO2 par continent (1950-2023)")
+st.write("Ce graphique montre la somme des émissions de CO2 par continent sur la période sélectionnée pour la carte.")
+
+a_garder_continents = ['Europe', 'Asia', 'Africa', 'North America', 'Oceania', 'South America']
+# Filtrer les données pour n'inclure que les continents et les années >= 1950
+df_continent_filtered = world_co2_data.loc[world_co2_data['country'].isin(a_garder_continents)].copy()
+
+if not df_continent_filtered.empty:
+    df_continent_sum = df_continent_filtered.groupby('country')['co2'].sum().reset_index()
+
+    # Créer explicitement la figure et les axes Matplotlib
+    fig_continent_bar, ax_continent_bar = plt.subplots(figsize=(10, 6)) # Ajuster la taille
+
+    sns.barplot(x='country', y='co2', data=df_continent_sum, ax=ax_continent_bar)
+    ax_continent_bar.set_title('Émissions totales de CO₂ (Mt) par continent (1950-2023)')
+    ax_continent_bar.set_xlabel('Continent')
+    ax_continent_bar.set_ylabel('Émissions de CO₂ (Mt)')
+    plt.xticks(rotation=45, ha='right') # Incliner les étiquettes de l'axe x
+    plt.tight_layout() # Ajuster la mise en page
+
+    st.pyplot(fig_continent_bar)
+else:
+     st.warning("Aucune donnée disponible pour afficher le graphique à barres par continent.")
+
+
+### Émissions de CO2 par continent au fil du temps (Line plot) ###
+st.header("Émissions de CO2 par continent au fil du temps")
+st.write("Ce graphique montre l'évolution annuelle des émissions de CO2 pour chaque continent depuis 1750.")
+
+# Utiliser le DataFrame original pour avoir les données depuis 1750 si disponibles
+df_continent_all_years = df.loc[df['country'].isin(a_garder_continents)].copy()
+
+if not df_continent_all_years.empty:
+    # Créer explicitement la figure et les axes Matplotlib
+    fig_continent_line, ax_continent_line = plt.subplots(figsize=(12, 7)) # Ajuster la taille
+
+    sns.lineplot(data=df_continent_all_years, x='year', y='co2', hue='country', ax=ax_continent_line)
+    ax_continent_line.set_title('Émissions de CO₂ (Mt) par continent et par année (1750-2023)')
+    ax_continent_line.set_xlabel('Année')
+    ax_continent_line.set_ylabel('Émissions de CO₂ (Mt)')
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.tight_layout()
+
+    st.pyplot(fig_continent_line)
+else:
+    st.warning("Aucune donnée disponible pour afficher le graphique linéaire par continent.")
+
+
+### Émission mondiale de CO2 par habitant (Carte choroplèthe) ###
+st.header("Émissions mondiales de CO2 par habitant au fil du temps")
+st.write("Cette carte montre l'évolution des émissions annuelles de CO2 par habitant par pays depuis 1950.")
+
+if not world_co2_data.empty:
+    fig_co2_per_capita_map = px.choropleth(world_co2_data, locations='iso_code', color='co2_per_capita',
+                                           animation_frame='year',
+                                           hover_name='country',
+                                           color_continuous_scale='pubu',
+                                           projection='natural earth',
+                                           title='Émission mondiale de CO2 par habitant (en tonnes)',
+                                           range_color=(0, world_co2_data['co2_per_capita'].quantile(0.95))) # Utiliser un quantile
+
+    fig_co2_per_capita_map.update_layout(geo=dict(showframe=False, showcoastlines=False),
+                                        title=dict(x=0.5, font=dict(size=20)),
+                                        height=600)
+    fig_co2_per_capita_map.update_coloraxes(colorbar=dict(x=1, y=0.5, len=1, tickfont=dict(size=10), title="CO2 (Tonnes)"))
+
+    st.plotly_chart(fig_co2_per_capita_map, use_container_width=True)
+else:
+     st.warning("Aucune donnée disponible pour afficher la carte des émissions de CO2 par habitant.")
+
+
+### Émissions de CO2 par habitant par continent (Bar plot) ###
+st.header("Émissions totales de CO2 par habitant par continent (1950-2023)")
+st.write("Ce graphique montre la somme des émissions de CO2 par habitant par continent sur la période sélectionnée pour la carte.")
+
+if not df_continent_filtered.empty:
+    df_co2_per_capita_sum = df_continent_filtered.groupby('country')['co2_per_capita'].sum().reset_index()
+
+    # Créer explicitement la figure et les axes Matplotlib
+    fig_co2_per_capita_bar, ax_co2_per_capita_bar = plt.subplots(figsize=(10, 6)) # Ajuster la taille
+
+    sns.barplot(x='country', y='co2_per_capita', data=df_co2_per_capita_sum, ax=ax_co2_per_capita_bar)
+    ax_co2_per_capita_bar.set_title('Émissions totales de CO₂ par habitant par continent (1950-2023)')
+    ax_co2_per_capita_bar.set_xlabel('Continent')
+    ax_co2_per_capita_bar.set_ylabel('Émissions de CO₂ par habitant (Tonnes)')
+    plt.xticks(rotation=45, ha='right') # Incliner les étiquettes de l'axe x
+    plt.tight_layout()
+
+    st.pyplot(fig_co2_per_capita_bar)
+else:
+    st.warning("Aucune donnée disponible pour afficher le graphique à barres des émissions par habitant par continent.")
+
+
+### Émissions de CO2 par habitant par continent au fil du temps (Line plot) ###
+st.header("Émissions de CO2 par habitant par continent au fil du temps")
+st.write("Ce graphique montre l'évolution annuelle des émissions de CO2 par habitant pour chaque continent depuis 1750.")
+
+if not df_continent_all_years.empty:
+    # Créer explicitement la figure et les axes Matplotlib
+    fig_co2_per_capita_line, ax_co2_per_capita_line = plt.subplots(figsize=(12, 7)) # Ajuster la taille
+
+    sns.lineplot(data=df_continent_all_years, x='year', y='co2_per_capita', hue='country', ax=ax_co2_per_capita_line)
+    ax_co2_per_capita_line.set_title('Émissions de CO₂ par habitant par continent et par année (1750-2023)')
+    ax_co2_per_capita_line.set_xlabel('Année')
+    ax_co2_per_capita_line.set_ylabel('Émissions de CO₂ par habitant (Tonnes)')
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.tight_layout()
+
+    st.pyplot(fig_co2_per_capita_line)
+else:
+     st.warning("Aucune donnée disponible pour afficher le graphique linéaire des émissions par habitant par continent.")
+
+
+### Top 15 pays émetteurs de CO2 (Bar plot) ###
+st.header("Top 15 des pays émetteurs de CO2")
+st.write("Classement des 15 pays ayant les émissions annuelles moyennes de CO2 les plus élevées sur la période 1950-2023.")
+
+if not world_co2_data.empty:
+    # Choix des top 15 pays les plus polluants (basé sur la moyenne sur la période filtrée)
+    df_moy = world_co2_data.groupby('country')['co2'].mean().reset_index()
+
+    regions = ['World','Asia','Europe','North America','Africa','South America','Oceania']
+    df_countries_only = df_moy[~df_moy['country'].isin(regions)].copy()
+
+    # On enlève les NaN
+    df_countries_only = df_countries_only.dropna(subset=['co2'])
+
+    # On trie et garde les 15 premiers
+    top_15_mean_emitters = df_countries_only.sort_values(by='co2', ascending=False).head(15).copy()
+
+    # Création du graphique interactif
+    fig_top15_bar = px.bar(top_15_mean_emitters.sort_values(by='co2', ascending=True), # Pour ordre croissant en vertical
+       x='co2',
+       y='country',
+       orientation='h',
+       title='Top 15 des pays émetteurs de CO₂ (Moyenne 1950-2023)',
+       labels={'co2': 'Émissions de CO₂ (Mt)', 'country': 'Pays'},
+       color='co2',
+       color_continuous_scale='reds')
+
+    # Mise à jour de la mise en page
+    fig_top15_bar.update_layout(template='plotly_white',
+                       height=600,
+                       margin=dict(l=150, r=50, t=50, b=50))
+
+    st.plotly_chart(fig_top15_bar, use_container_width=True)
+else:
+    st.warning("Aucune donnée disponible pour calculer et afficher le top 15 des pays émetteurs.")
+
+
+### Boxplots sur la liste des top 15 émetteurs de CO2 ###
+st.header("Distribution des émissions de CO2 pour les Top 15 pays émetteurs")
+st.write("Ces boxplots montrent la distribution annuelle des émissions de CO2 pour les 15 pays les plus émetteurs (basé sur la moyenne 1950-2023), depuis 1850.")
+
+# Liste des top 15 pays basée sur la moyenne 1950-2023 calculée ci-dessus
+if 'top_15_mean_emitters' in locals() and not top_15_mean_emitters.empty:
+    top15_countries_list = top_15_mean_emitters['country'].tolist()
+    country_top_boxplot_data = df.loc[df['country'].isin(top15_countries_list)].copy()
+    country_top_boxplot_data = country_top_boxplot_data.loc[country_top_boxplot_data['year'] >= 1850].copy()
+
+    if not country_top_boxplot_data.empty:
+        fig_boxplot = px.box(country_top_boxplot_data, x="country", y="co2", hover_data=["year"],
+                             title="Boxplots des émissions de CO2 depuis 1850 - Top 15 pays émetteurs")
+        fig_boxplot.update_layout(xaxis_title="Pays",
+                                  yaxis_title="Émissions CO2 (Mt)",
+                                  height=600,
+                                  margin=dict(l=50, r=50, t=50, b=50)) # Ajuster les marges si nécessaire
+
+        st.plotly_chart(fig_boxplot, use_container_width=True)
+    else:
+         st.warning("Aucune donnée suffisante depuis 1850 pour les top 15 pays afin d'afficher les boxplots.")
+else:
+    st.warning("Le calcul du top 15 des pays n'a pas abouti. Impossible d'afficher les boxplots.")
+
+
+### Émissions de CO2 des top 15 émetteurs au fil du temps (Line plot) ###
+st.header("Émissions de CO2 des Top 15 pays émetteurs au fil du temps")
+st.write("Ce graphique montre l'évolution annuelle des émissions de CO2 pour les 15 pays les plus émetteurs (basé sur la moyenne 1950-2023), depuis 1850.")
+
+# Utiliser le même DataFrame filtré pour les boxplots
+if 'country_top_boxplot_data' in locals() and not country_top_boxplot_data.empty:
+    fig_top15_line = px.line(
+        country_top_boxplot_data,
+        x='year',
+        y='co2',
+        color='country',
+        title='Émissions de CO₂ des Top 15 pays émetteurs (1850-2023)',
+        labels={'year': 'Année', 'co2': 'Émissions de CO₂ (Mt)'})
+
+    fig_top15_line.update_layout(template='plotly_white',
+                                 height=600,
+                                 margin=dict(l=50, r=50, t=50, b=50))
+
+    st.plotly_chart(fig_top15_line, use_container_width=True)
+else:
+     st.warning("Aucune donnée suffisante depuis 1850 pour les top 15 pays afin d'afficher le graphique linéaire.")
+
+st.markdown("---")
+st.write("Source des données : Our World in Data (https://github.com/owid/co2-data)")
