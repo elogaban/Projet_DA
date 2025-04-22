@@ -327,6 +327,11 @@ Ils montrent la différence entre la température moyenne de surface d'une anné
 """, unsafe_allow_html=True)
 
 # Cinquième graphique
+
+
+st.title("Analyse des émissions de CO2 mondiales")
+st.write("Visualisation des données sur les émissions de CO2 provenant de Our World in Data.")
+
 # URL brute du fichier CSV dans GitHub
 url = 'https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv'
  
@@ -371,8 +376,6 @@ Saoudite qui à la plus forte émission par habitant. <br>
 # Configuration de la page Streamlit
 # st.set_page_config(layout="wide", page_title="Analyse des émissions de CO2 mondiales")
 
-st.title("Analyse des émissions de CO2 mondiales")
-st.write("Visualisation des données sur les émissions de CO2 provenant de Our World in Data.")
 
 # URL brute du fichier CSV dans GitHub
 url = 'https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv'
@@ -436,10 +439,26 @@ if not world_co2_data.empty:
                               height=600) # Ajuster la hauteur pour Streamlit
     fig_co2_map.update_coloraxes(colorbar=dict(x=1, y=0.5, len=1, tickfont=dict(size=10), title="CO2 (Mt)"))
 
+
+  
     st.plotly_chart(fig_co2_map, use_container_width=True)
 else:
     st.warning("Aucune donnée disponible pour afficher la carte des émissions de CO2.")
 
+st.caption("Source : https://ourworldindata.org/")
+
+st.markdown("""
+En observant la carte interactive, nous pouvons remarquer que les émissions de CO2 ont augmenté de manière constante depuis 1950. <br>
+Les pays ayant les émissions les plus élevées sont les États-Unis, la Chine, l'Inde, la Russie et le Japon. <br>
+Ces pays ont des émissions de CO2 plusieurs fois plus élevées que d'autres pays de la carte, ce qui indique que la majeure partie de l'émission de CO2 <br>
+dans le monde provient de ces pays. <br>
+Nous pouvons également observer que les émissions de CO2 ont connu une augmentation rapide à partir du milieu des années 1950 et <br>
+ont augmenté de manière plus prononcée à partir des années 2000. Cette augmentation rapide peut être liée à l'augmentation de la population mondiale <br>
+et à l'augmentation de la demande d'énergie pour les transports, la production manufacturière et l'électricité. <br>
+Cependant, il existe également des différences régionales dans les émissions de CO2. <br>
+L'Amérique du Nord, l'Europe et l'Asie ont des émissions plus élevées que l'Afrique et l'Amérique latine. <br>
+Cela peut être dû à des facteurs tels que les niveaux de développement économique, les politiques environnementales et les sources d'énergie employées. <br>
+""", unsafe_allow_html=True)
 
 ### Émissions de CO2 par continent (Bar plot) ###
 st.header("Émissions totales de CO2 par continent (1950-2023)")
