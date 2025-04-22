@@ -367,16 +367,9 @@ Saoudite qui à la plus forte émission par habitant. <br>
 """, unsafe_allow_html=True)
 
 # sixième graphique
-import streamlit as st
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
-import seaborn as sns
-import plotly.express as px
 
 # Configuration de la page Streamlit
-st.set_page_config(layout="wide", page_title="Analyse des émissions de CO2 mondiales")
+# st.set_page_config(layout="wide", page_title="Analyse des émissions de CO2 mondiales")
 
 st.title("Analyse des émissions de CO2 mondiales")
 st.write("Visualisation des données sur les émissions de CO2 provenant de Our World in Data.")
