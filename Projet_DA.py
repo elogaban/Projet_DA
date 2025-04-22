@@ -335,6 +335,11 @@ liste_entites = [
     "Russia"
 ]
 
+df = pd.read_csv(
+    "https://ourworldindata.org/grapher/annual-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true",
+    storage_options={'User-Agent': 'Our World In Data data fetch/1.0'}
+)
+
 # Filtrer les entités et les années
 df_grouped = df[df['Entity'].isin(liste_entites)].copy()
 df_grouped = df_grouped[df_grouped['Year'] >= 1940]
