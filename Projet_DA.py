@@ -367,41 +367,33 @@ Saoudite qui à la plus forte émission par habitant. <br>
 """, unsafe_allow_html=True)
 
 # Sixième graphique
-# Fetch the data.
-df = pd.read_csv("https://ourworldindata.org/grapher/co2-long-term-concentration.csv?v=1&csvType=full&useColumnShortNames=true", storage_options = {'User-Agent': 'Our World In Data data fetch/1.0'})
- 
-# Fetch the metadata
-metadata = requests.get("https://ourworldindata.org/grapher/co2-long-term-concentration.metadata.json?v=1&csvType=full&useColumnShortNames=true").json()
- 
-# Fetch the data.
-df_temp = pd.read_csv("https://ourworldindata.org/grapher/country-level-monthly-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true", storage_options = {'User-Agent': 'Our World In Data data fetch/1.0'})
-# Fetch the metadata
-metadata = requests.get("https://ourworldindata.org/grapher/global-temperature-anomalies-by-month.metadata.json?v=1&csvType=full&useColumnShortNames=true").json()
-# Filter data for years from 1800 onwards for both datasets
-df = df[df['Year'] >= 1800]
+# Chargement des données
+df = pd.read_csv("https://ourworldindata.org/grapher/co2-long-term-concentration.csv?v=1&csvType=full&useColumnShortNames=true", storage_options={'User-Agent': 'Our World In Data data fetch/1.0'})
+df_temp = pd.read_csv("https://ourworldindata.org/grapher/country-level-monthly-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true", storage_options={'User-Agent': 'Our World In Data data fetch/1.0'})
 
-st.pyplot(fig)
-df_long = df_long[df_long['Year'] >= 1800]
- 
-# Create the plot
+# Filtrage
+df = df[df['Year'] >= 1800]
+df_temp = df_temp[df_temp['Year'] >= 1800]
+
+# Création du graphique
 fig, ax1 = plt.subplots(figsize=(15, 7))
- 
-# Plot CO2 concentration on the first y-axis
+
+# Axe CO2
 color = 'tab:red'
-ax1.set_xlabel('Year')
-ax1.set_ylabel('CO2 Concentration', color=color)
+ax1.set_xlabel('Année')
+ax1.set_ylabel('Concentration CO2 (ppm)', color=color)
 ax1.plot(df['Year'], df['co2_concentration'], color=color)
 ax1.tick_params(axis='y', labelcolor=color)
- 
-# Create a second y-axis for temperature anomalies
-ax2 = ax1.twinx()  
+
+# Axe température
+ax2 = ax1.twinx()
 color = 'tab:blue'
-ax2.set_ylabel('Temperature Anomaly (°C)', color=color)
-ax2.plot(df_long['Year'], df_long['Anomaly'], color=color)
+ax2.set_ylabel('Anomalie Température (°C)', color=color)
+ax2.plot(df_temp['Year'], df_temp['Anomaly'], color=color)
 ax2.tick_params(axis='y', labelcolor=color)
- 
-# Add title and legend
-plt.title('CO2 Concentration and Temperature Anomaly (1800-2024)')
+
+plt.title('Concentration de CO2 et Anomalies de Température (1800-2024)')
 plt.grid(True)
- 
-# Show the plot
+
+# Affichage Streamlit
+st.pyplot(fig)
