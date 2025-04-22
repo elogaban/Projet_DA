@@ -326,76 +326,33 @@ Ils montrent la différence entre la température moyenne de surface d'une anné
 """, unsafe_allow_html=True)
 
 # Cinquième graphique
-
-liste_entites = [
-    "Europe",
-    "North America",
-    "Asia",
-    "China",
-    "Russia"
-]
-
-df = pd.read_csv(
-    "https://ourworldindata.org/grapher/annual-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true",
-    storage_options={'User-Agent': 'Our World In Data data fetch/1.0'}
-)
-
-# Filtrer les entités et les années
-df_grouped = df[df['Entity'].isin(liste_entites)].copy()
-df_grouped = df_grouped[df_grouped['Year'] >= 1940]
-
-plt.figure(figsize=(8, 5))
-
-# Create a color palette using tab10
-palette = sns.color_palette("tab10", n_colors=len(liste_entites))
-
-# Fossil fuels and Land Use on the same plot
-sns.lineplot(
-    data=df_grouped,
-    x='Year',
-    y='temperature_response_ghg_fossil',
-    linewidth=2,
-    label='Fossil Fuels',
-    color='yellow'  # Using a single color for Fossil Fuels
-)
-sns.lineplot(
-    data=df_grouped,
-    x='Year',
-    y='temperature_response_ghg_land',
-    linewidth=2,
-    linestyle='--',
-    label='Land Use',
-    color='grey' # Using a single color for Land Use
-)
-
-for i, entity in enumerate(liste_entites):
-    sns.lineplot(
-        data=df_grouped[df_grouped['Entity'] == entity],
-        x='Year',
-        y='temperature_response_ghg_fossil',
-        color=palette[i],
-        linewidth=2,
-        label=entity # Adding the name of the entity as the label
-    )
-    sns.lineplot(
-        data=df_grouped[df_grouped['Entity'] == entity],
-        x='Year',
-        y='temperature_response_ghg_land',
-        color=palette[i],
-        linewidth=2,
-        linestyle='--',
-    )
-
-plt.title("Contribution au réchauffement climatique par région (1900-2022)", fontsize=10)
-plt.xlabel("Année", fontsize=12)
-plt.ylabel("Réchauffement estimé (°C)", fontsize=12)
-plt.grid(True, linestyle='--', alpha=0.7)
-plt.tick_params(axis='both', labelsize=10)
-
-handles, labels = plt.gca().get_legend_handles_labels()
-by_label = dict(zip(labels, handles))
-plt.legend(by_label.values(), by_label.keys(), loc='right', ncol=4, frameon=False, bbox_to_anchor=(0.5, 1.10), fontsize=6)
-
-plt.tight_layout()
-plt.show()
+# URL brute du fichier CSV dans GitHub
+url = 'https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv'
+ 
+# Charger le fichier CSV dans un DataFrame
+df = pd.read_csv(url)
+ 
+# Filtrer les données pour ne garder que les colonnes nécessaires et supprimer les lignes avec des valeurs manquantes
+df_filtered = df[['country', 'year', 'co2_per_capita']].dropna(subset=['co2_per_capita'])
+ 
+# Filtrer pour inclure uniquement les données à partir de l'année 1900
+df_filtered = df_filtered[df_filtered['year'] >= 1900]
+ 
+# Trier les données par année pour garantir l'ordre croissant
+df_filtered = df_filtered.sort_values(by='year')
+ 
+# Créer le graphique interactif avec Plotly Express
+fig = px.choropleth(df_filtered,
+                    locations="country",
+                    locationmode="country names",
+                    color="co2_per_capita",
+                    hover_name="country",
+                    animation_frame="year",
+                    range_color=[0, 20],  # Ajuster la plage de couleurs selon vos besoins
+                    color_continuous_scale="Viridis",
+                    projection="natural earth",
+                    title="Évolution du CO2 per capita par pays")
+ 
+# Afficher le graphique
+fig.show()
 
