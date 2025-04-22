@@ -3,4 +3,4 @@ plotly
 pandas
 numpy
 seaborn
-matplotlib.pyplot
+matplotlib
