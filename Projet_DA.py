@@ -1,84 +1,209 @@
 import streamlit as st
-import plotly.graph_objects as go
 import pandas as pd
+import plotly.graph_objects as go
 import plotly.express as px
-import requests
 import matplotlib.pyplot as plt
-import seaborn as sns
-from matplotlib import pyplot as plt
+import seaborn as sns # Garder pour les graphiques seaborn
 
-st.title("Projet DA : températures terrestres")
+# --- Configuration de la page Streamlit (optionnel mais bonne pratique) ---
+st.set_page_config(layout="wide", page_title="Projet DA Températures et CO2")
+
+# --- Titre et introduction ---
+st.title("Projet DA : Analyse des températures et émissions de CO2")
 st.header("Quelques exemples de visuels")
-# --- Premier graphique (inchangé) ---
-# Titre du graphique et des axes
-title_text_mer = "Anomalies annuelles de la température de la surface des océans"
-xaxis_title_mer = "Année"
-yaxis_title_mer = "Anomalie de température (°C)"
 
-# Lecture des données depuis une URL
-df_mer = pd.read_csv("https://ourworldindata.org/grapher/sea-surface-temperature-anomaly.csv?v=1&csvType=full&useColumnShortNames=true", storage_options = {'User-Agent': 'Our World In Data data fetch/1.0'})
+# --- Constantes (URLs des données) ---
+URL_SEA_TEMP = "https://ourworldindata.org/grapher/sea-surface-temperature-anomaly.csv?v=1&csvType=full&useColumnShortNames=true"
+URL_GISS_TEMP_GLOBAL = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv"
+URL_GISS_TEMP_NH = "https://data.giss.nasa.gov/gistemp/tabledata_v4/NH.Ts+dSST.csv"
+URL_GISS_TEMP_SH = "https://data.giss.nasa.gov/gistemp/tabledata_v4/SH.Ts+dSST.csv"
+URL_LAND_TEMP = "https://ourworldindata.org/grapher/annual-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true"
+URL_CO2_DATA = 'https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv'
 
-# Filtrage des données pour obtenir les données globales, de l'hémisphère nord et de l'hémisphère sud
-world_data_mer = df_mer[df_mer['Entity'] == 'World']
-northern_hemisphere_data_mer = df_mer[df_mer['Entity'] == 'Northern Hemisphere']
-southern_hemisphere_data_mer = df_mer[df_mer['Entity'] == 'Southern Hemisphere']
+# --- Fonctions de chargement et préparation des données (avec caching) ---
 
-# Création de la figure
-fig_mer = go.Figure()
+@st.cache_data
+def load_sea_temp_data(url: str) -> pd.DataFrame:
+    """Charge les données d'anomalie de température de surface de la mer."""
+    try:
+        df = pd.read_csv(url, storage_options={'User-Agent': 'Our World In Data data fetch/1.0'})
+        return df
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données de température de surface de la mer : {e}")
+        return pd.DataFrame()
 
-# Ajout des traces pour chaque ensemble de données (Global, Hémisphère Nord, Hémisphère Sud)
-fig_mer.add_trace(go.Scatter(x=world_data_mer['Year'], y=world_data_mer['sea_temperature_anomaly_annual'],
-                            mode='lines', name='Moyenne Globale', line=dict(color='royalblue', width=2)))
-fig_mer.add_trace(go.Scatter(x=northern_hemisphere_data_mer['Year'], y=northern_hemisphere_data_mer['sea_temperature_anomaly_annual'],
-                            mode='lines', name='Hémisphère Nord', line=dict(color='firebrick', width=2, dash='dash')))
-fig_mer.add_trace(go.Scatter(x=southern_hemisphere_data_mer['Year'], y=southern_hemisphere_data_mer['sea_temperature_anomaly_annual'],
-                            mode='lines', name='Hémisphère Sud', line=dict(color='forestgreen', width=2, dash='dot')))
+@st.cache_data
+def load_giss_temp_data() -> pd.DataFrame:
+    """Charge et combine les données GISS de température (Terres + Océans)."""
+    def load_single_giss_file(url, region):
+        df = pd.read_csv(url, header=1)
+        df = df.iloc[1:]
+        df = df.replace('***', pd.NA)
+        df['Region'] = region
+        df = df[['Year', 'J-D', 'Region']].copy() # Utiliser .copy()
+        df['J-D'] = pd.to_numeric(df['J-D'], errors='coerce')
+        df['Year'] = pd.to_numeric(df['Year'], errors='coerce')
+        return df
 
-# Mise à jour de la mise en page du graphique
-fig_mer.update_layout(
-    title=title_text_mer,
-    xaxis_title=xaxis_title_mer,
-    yaxis_title=yaxis_title_mer,
-    hovermode="x unified",
-    legend=dict(
-        yanchor="top",
-        y=0.99,
-        xanchor="left",
-        x=0.01
-    ),
-    font=dict(size=12),
-    plot_bgcolor='white',
-    xaxis=dict(
-        rangeslider=dict(visible=True),
-        type="date",
-        showgrid=True,
-        gridcolor='lightgray'
-    ),
-    yaxis=dict(
-        showgrid=True,
-        gridcolor='lightgray'
+    try:
+        df_global = load_single_giss_file(URL_GISS_TEMP_GLOBAL, "Monde")
+        df_north = load_single_giss_file(URL_GISS_TEMP_NH, "Hémisphère Nord")
+        df_south = load_single_giss_file(URL_GISS_TEMP_SH, "Hémisphère Sud")
+        df_final = pd.concat([df_global, df_north, df_south], ignore_index=True)
+        return df_final
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données GISS : {e}")
+        return pd.DataFrame()
+
+@st.cache_data
+def load_land_temp_data(url: str) -> pd.DataFrame:
+    """Charge les données d'anomalie de température terrestre (OWID)."""
+    try:
+        df = pd.read_csv(url, storage_options={'User-Agent': 'My User Agent 1.0'})
+        # Convert 'Year' to datetime early if needed for plotly 'date' type
+        # df['Year'] = pd.to_datetime(df['Year'], format='%Y') # Let's keep it as integer year for simplicity unless needed for specific plotting feature
+        return df
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données de température terrestre : {e}")
+        return pd.DataFrame()
+
+@st.cache_data
+def load_co2_data(url: str) -> pd.DataFrame:
+    """Charge les données CO2 et effectue un prétraitement initial."""
+    try:
+        df = pd.read_csv(url)
+
+        # Colonnes à garder
+        colonnes_a_garder = [
+            'country', 'year', 'iso_code', 'population', 'gdp',
+            'co2', 'co2_per_capita', 'methane', 'nitrous_oxide',
+            'cumulative_gas_co2', 'cumulative_oil_co2','cumulative_flaring_co2','cumulative_coal_co2','cumulative_other_co2',
+            'temperature_change_from_ch4', 'temperature_change_from_co2',
+            'temperature_change_from_ghg', 'temperature_change_from_n2o'
+        ]
+        df = df[colonnes_a_garder].copy() # Utiliser .copy()
+
+        # Les pays (lignes) à retirer
+        A_retirer = [
+            'Africa (GCP)', 'Asia (GCP)', 'Asia (excl. China and India)', 'Central America (GCP)',
+            'Europe (GCP)', 'Europe (excl. EU-27)', 'Europe (excl. EU-28)', 'European Union (27)',
+            'European Union (28)', 'High-income countries', 'International aviation',
+            'International shipping', 'International transport','Kuwaiti Oil Fires',
+            'Kuwaiti Oil Fires (GCP)', 'Least developed countries (Jones et al. 2023)',
+            'Low-income countries', 'Lower-middle-income countries', 'Middle East (GCP)',
+            'Non-OECD (GCP)', 'North America (GCP)', 'North America (excl. USA)', 'OECD (GCP)',
+            'OECD (Jones et al.)', 'Oceania (GCP)', 'Ryukyu Islands (GCP)', 'South America (GCP)',
+            'Upper-middle-income countries', 'World', # Souvent la ligne 'World' fausse les comparaisons par pays
+            'International Transport' # Ajout car présent parfois
+        ]
+        # Retirer aussi les entrées qui sont des continents
+        continents_list = ['Asia', 'Europe', 'Africa', 'North America', 'Oceania', 'South America']
+        A_retirer.extend(continents_list)
+        A_retirer = list(set(A_retirer)) # Supprimer les doublons si ajoutés plusieurs fois
+
+        df = df.loc[~df['country'].isin(A_retirer)].copy() # Utiliser .copy()
+
+        return df
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données CO2 : {e}")
+        return pd.DataFrame()
+
+
+@st.cache_data
+def load_co2_data_with_regions(url: str) -> pd.DataFrame:
+    """Charge les données CO2 et inclut les agrégations régionales."""
+    try:
+        df = pd.read_csv(url)
+
+        colonnes_a_garder = [
+            'country', 'year', 'iso_code', 'co2', 'co2_per_capita'
+        ]
+        df = df[colonnes_a_garder].copy() # Utiliser .copy()
+
+        # Filtrer pour inclure le monde et les continents
+        regions_to_keep = [
+             'World','Asia','Europe','North America','Africa','South America','Oceania'
+        ]
+        # Ajouter les pays qui pourraient être nécessaires pour d'autres graphiques si le df principal les exclut
+        # Mais pour les graphiques continentaux et mondiaux spécifiques, ce dataframe est utile.
+        # On garde les données pour toutes les années disponibles.
+        df_filtered = df[df['country'].isin(regions_to_keep)].copy()
+
+        return df_filtered
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données CO2 avec régions : {e}")
+        return pd.DataFrame()
+
+
+# --- Helpers pour la mise en page Plotly ---
+
+def apply_common_plotly_layout_updates(fig: go.Figure, xaxis_is_date: bool = False, **kwargs):
+    """Applique les mises en page communes aux figures Plotly."""
+    fig.update_layout(
+        hovermode="x unified",
+        legend=dict(
+            yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor='rgba(255, 255, 255, 0.7)'
+        ),
+        font=dict(size=12),
+        plot_bgcolor='white',
+        margin=dict(t=60, b=60, l=80, r=40), # Marges par défaut
     )
-)
+    # Grilles
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridcolor='lightgray')
 
-# Ajout d'un sélecteur de plage pour une exploration interactive des données
-fig_mer.update_xaxes(
-    rangeslider_visible=True,
-    rangeselector=dict(
-        buttons=list([
-            dict(count=1, label="1 an", step="year", stepmode="backward"),
-            dict(count=5, label="5 ans", step="year", stepmode="backward"),
-            dict(count=10, label="10 ans", step="year", stepmode="backward"),
-            dict(step="all")
-        ])
+    # Configuration spécifique pour l'axe X de type date avec rangeslider/rangeselector
+    if xaxis_is_date:
+         fig.update_xaxes(
+             rangeslider_visible=True,
+             type="date", # Plotly gère automatiquement la conversion si la colonne est datetime ou int/float représentant l'année
+             rangeselector=dict(
+                 buttons=list([
+                     dict(count=1, label="1 an", step="year", stepmode="backward"),
+                     dict(count=5, label="5 ans", step="year", stepmode="backward"),
+                     dict(count=10, label="10 ans", step="year", stepmode="backward"),
+                     dict(step="all")
+                 ])
+             )
+         )
+
+    # Appliquer d'autres mises à jour spécifiques passées en kwargs
+    fig.update_layout(**kwargs)
+
+
+# --- Affichage des graphiques ---
+
+st.subheader("Anomalies annuelles de la température de la surface des océans")
+df_mer = load_sea_temp_data(URL_SEA_TEMP)
+
+if not df_mer.empty:
+    world_data_mer = df_mer[df_mer['Entity'] == 'World']
+    northern_hemisphere_data_mer = df_mer[df_mer['Entity'] == 'Northern Hemisphere']
+    southern_hemisphere_data_mer = df_mer[df_mer['Entity'] == 'Southern Hemisphere']
+
+    fig_mer = go.Figure()
+
+    fig_mer.add_trace(go.Scatter(x=world_data_mer['Year'], y=world_data_mer['sea_temperature_anomaly_annual'],
+                                 mode='lines', name='Moyenne Globale', line=dict(color='royalblue', width=2)))
+    fig_mer.add_trace(go.Scatter(x=northern_hemisphere_data_mer['Year'], y=northern_hemisphere_data_mer['sea_temperature_anomaly_annual'],
+                                 mode='lines', name='Hémisphère Nord', line=dict(color='firebrick', width=2, dash='dash')))
+    fig_mer.add_trace(go.Scatter(x=southern_hemisphere_data_mer['Year'], y=southern_hemisphere_data_mer['sea_temperature_anomaly_annual'],
+                                 mode='lines', name='Hémisphère Sud', line=dict(color='forestgreen', width=2, dash='dot')))
+
+    apply_common_plotly_layout_updates(
+        fig_mer,
+        xaxis_is_date=True, # Appliquer la config date
+        title=None, # Titre dans le subheader Streamlit
+        xaxis_title="Année",
+        yaxis_title="Anomalie de température (°C)",
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01) # Exemple d'override si nécessaire
     )
-)
 
-# Affichage du premier graphique avec Streamlit
-st.plotly_chart(fig_mer)
-
+    st.plotly_chart(fig_mer, use_container_width=True)
+else:
+    st.warning("Impossible d'afficher le graphique de température de surface de la mer car les données n'ont pas été chargées.")
 
 st.caption("Source : https://ourworldindata.org/")
-           
 st.markdown("""
 Le graphique donne les anomalies annuelles de la température de la surface de la mer par rapport à la période préindustrielle pour le Monde, l'Hémisphère Nord, <br>
 et l'Hémisphère Sud). <br>
@@ -86,89 +211,39 @@ Les données représentent la différence entre la température moyenne de la su
 Le graphique montre que les océans de l'hémisphère Nord se réchauffent plus vite que ceux de l'hémisphère Sud depuis 2013.
 """, unsafe_allow_html=True)
 
-# --- Deuxième graphique (ressemblant au premier) ---
-# Chargement des 3 datasets
-def load_and_prepare_terre(url, region):
-    df = pd.read_csv(url, header=1)
-    df = df.iloc[1:]
-    df = df.replace('***', pd.NA)
-    df['Region'] = region
-    df = df[['Year', 'J-D', 'Region']]
-    return df
 
-df_global_terre = load_and_prepare_terre("https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv", "Monde")
-df_north_terre = load_and_prepare_terre("https://data.giss.nasa.gov/gistemp/tabledata_v4/NH.Ts+dSST.csv", "Hémisphère Nord")
-df_south_terre = load_and_prepare_terre("https://data.giss.nasa.gov/gistemp/tabledata_v4/SH.Ts+dSST.csv", "Hémisphère Sud")
+# --- Deuxième graphique: Anomalies de température (Terres + Océans - GISS) ---
+st.subheader("Anomalies annuelles de la température : Terres + Océans (GISS)")
+df_final_terre = load_giss_temp_data()
 
-# Fusion et nettoyage
-df_final_terre = pd.concat([df_global_terre, df_north_terre, df_south_terre], ignore_index=True)
-df_final_terre['J-D'] = pd.to_numeric(df_final_terre['J-D'], errors='coerce')
-df_final_terre['Year'] = pd.to_numeric(df_final_terre['Year'], errors='coerce')
+if not df_final_terre.empty:
+    world_data_terre = df_final_terre[df_final_terre['Region'] == 'Monde']
+    northern_hemisphere_data_terre = df_final_terre[df_final_terre['Region'] == 'Hémisphère Nord']
+    southern_hemisphere_data_terre = df_final_terre[df_final_terre['Region'] == 'Hémisphère Sud']
 
-# Titre du graphique et des axes (similaires au premier)
-title_text_terre = "Anomalies annuelles de la température : Terres + Océans"
-xaxis_title_terre = "Année"
-yaxis_title_terre = "Anomalie de température (°C)"
+    fig_terre = go.Figure()
 
-# Création de la figure
-fig_terre = go.Figure()
+    fig_terre.add_trace(go.Scatter(x=world_data_terre['Year'], y=world_data_terre['J-D'],
+                                   mode='lines', name='Moyenne Globale', line=dict(color='royalblue', width=2)))
+    fig_terre.add_trace(go.Scatter(x=northern_hemisphere_data_terre['Year'], y=northern_hemisphere_data_terre['J-D'],
+                                   mode='lines', name='Hémisphère Nord', line=dict(color='firebrick', width=2, dash='dash')))
+    fig_terre.add_trace(go.Scatter(x=southern_hemisphere_data_terre['Year'], y=southern_hemisphere_data_terre['J-D'],
+                                   mode='lines', name='Hémisphère Sud', line=dict(color='forestgreen', width=2, dash='dot')))
 
-# Ajout des traces pour chaque ensemble de données (Monde, Hémisphère Nord, Hémisphère Sud)
-world_data_terre = df_final_terre[df_final_terre['Region'] == 'Monde']
-northern_hemisphere_data_terre = df_final_terre[df_final_terre['Region'] == 'Hémisphère Nord']
-southern_hemisphere_data_terre = df_final_terre[df_final_terre['Region'] == 'Hémisphère Sud']
-
-fig_terre.add_trace(go.Scatter(x=world_data_terre['Year'], y=world_data_terre['J-D'],
-                            mode='lines', name='Moyenne Globale', line=dict(color='royalblue', width=2)))
-fig_terre.add_trace(go.Scatter(x=northern_hemisphere_data_terre['Year'], y=northern_hemisphere_data_terre['J-D'],
-                            mode='lines', name='Hémisphère Nord', line=dict(color='firebrick', width=2, dash='dash')))
-fig_terre.add_trace(go.Scatter(x=southern_hemisphere_data_terre['Year'], y=southern_hemisphere_data_terre['J-D'],
-                            mode='lines', name='Hémisphère Sud', line=dict(color='forestgreen', width=2, dash='dot')))
-
-# Mise à jour de la mise en page du graphique
-fig_terre.update_layout(
-    title=title_text_terre,
-    xaxis_title=xaxis_title_terre,
-    yaxis_title=yaxis_title_terre,
-    hovermode="x unified",
-    legend=dict(
-        yanchor="top",
-        y=0.99,
-        xanchor="left",
-        x=0.01
-    ),
-    font=dict(size=12),
-    plot_bgcolor='white',
-    xaxis=dict(
-        rangeslider=dict(visible=True),
-        type="date",
-        showgrid=True,
-        gridcolor='lightgray'
-    ),
-    yaxis=dict(
-        showgrid=True,
-        gridcolor='lightgray'
+    apply_common_plotly_layout_updates(
+        fig_terre,
+        xaxis_is_date=True, # Appliquer la config date
+        title=None, # Titre dans le subheader Streamlit
+        xaxis_title="Année",
+        yaxis_title="Anomalie de température (°C)",
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01) # Exemple d'override
     )
-)
 
-# Ajout d'un sélecteur de plage pour une exploration interactive des données (copie du premier graphique)
-fig_terre.update_xaxes(
-    rangeslider_visible=True,
-    rangeselector=dict(
-        buttons=list([
-            dict(count=1, label="1 an", step="year", stepmode="backward"),
-            dict(count=5, label="5 ans", step="year", stepmode="backward"),
-            dict(count=10, label="10 ans", step="year", stepmode="backward"),
-            dict(step="all")
-        ])
-    )
-)
-
-# Affichage du deuxième graphique avec Streamlit
-st.plotly_chart(fig_terre)
+    st.plotly_chart(fig_terre, use_container_width=True)
+else:
+     st.warning("Impossible d'afficher le graphique de température GISS car les données n'ont pas été chargées.")
 
 st.caption("Source : https://data.giss.nasa.gov/gistemp/")
-
 st.markdown("""
 Le dataset utilisé pour ce graphique est la combinaison de 3 datasets : un par région observée (Monde, Hémisphère Nord, Hémisphère Sud). <br>
 Le graphique présente les anomalies combinées de température de l'air à la surface terrestre et de l'eau à la surface de la mer, <br>
@@ -177,193 +252,161 @@ Le graphique confirme un réchauffement plus rapide de l'hémisphère Nord depui
 <br>
 """, unsafe_allow_html=True)
 
-# --- Troisième graphique (titre à gauche) ---
-# Fonction pour créer un graphique des anomalies de température
-def create_temperature_graph(filepath):
-    try:
-        # Lecture du fichier CSV avec une option pour le User-Agent
-        df = pd.read_csv(filepath, storage_options={'User-Agent': 'My User Agent 1.0'})
-        # Conversion de la colonne 'Year' en objets datetime
-        df['Year'] = pd.to_datetime(df['Year'], format='%Y')
+# --- Troisième graphique: Anomalies de température terrestre (OWID) ---
+st.subheader("Anomalies annuelles de température (Terres) par pays")
+st.markdown("Ce graphique montre les anomalies de température pour le Monde et certains pays (ceux contenant 'NIAID' dans le jeu de données original).")
 
-        # Extraction des pays uniques et filtrage des mots clés
-        countries = df['Entity'].unique()
-        filtered_countries = [
-            country for country in countries
-            if not any(keyword in country.lower() for keyword in ["ocean", "seas", "sea", "mediterranean", "world"])
-        ]
+df_land_temp = load_land_temp_data(URL_LAND_TEMP)
 
-        # Sélection des pays pour le graphique (y compris le monde et les pays contenant "NIAID")
-        selected_countries = ['World']
-        selected_countries.extend([country for country in filtered_countries if "NIAID" in country])
+if not df_land_temp.empty:
+    # Logique de filtrage des pays (adaptée de la fonction originale)
+    countries = df_land_temp['Entity'].unique()
+    filtered_countries = [
+        country for country in countries
+        if not any(keyword in country.lower() for keyword in ["ocean", "seas", "sea", "mediterranean", "world"])
+    ]
+    selected_countries = ['World']
+    selected_countries.extend([country for country in filtered_countries if "NIAID" in country])
 
-        # Création du graphique
-        fig = go.Figure()
+    country_data_filtered = df_land_temp[df_land_temp['Entity'].isin(selected_countries)].copy() # Utiliser .copy()
+    country_data_filtered['Year'] = pd.to_datetime(country_data_filtered['Year'], format='%Y') # Convertir en datetime pour axe date
+
+    if not country_data_filtered.empty:
+        fig_land = go.Figure()
         for country in selected_countries:
-            country_data = df[df['Entity'] == country]
+            country_data = country_data_filtered[country_data_filtered['Entity'] == country]
             if not country_data.empty:
-                # Suppression de "(NIAID)" du nom de la légende
                 legend_name = country.replace(" (NIAID)", "")
-                # Ajout des données du pays au graphique
-                fig.add_trace(go.Scatter(x=country_data['Year'], y=country_data['temperature_anomaly'], name=legend_name, mode='lines+markers', marker=dict(size=4)))
+                fig_land.add_trace(go.Scatter(x=country_data['Year'], y=country_data['temperature_anomaly'],
+                                              name=legend_name, mode='lines+markers', marker=dict(size=4)))
 
-        # Configuration de la mise en page du graphique
-        fig.update_layout(
-            title="Anomalies de température annuelles<br><sup>Différence entre la température moyenne de surface de la terre d'une année et la moyenne de 1991 à 2020, en degrés Celsius</sup>",
-            title_x=0.0,  # Modification ici pour aligner le titre à gauche
-            title_y=0.98,
-            title_font=dict(size=16),
-            xaxis_title="Année",
-            yaxis_title="Anomalies de température (°C)",
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="center",
-                x=0.5
-            ),
-            width=1200,
-            height=700,
-            xaxis=dict(
-                rangeslider=dict(visible=True),
-                type="date"
-            ),
-            hovermode="x unified",
-            annotations=[
-                dict(
-                    x=df[df['Entity'] == 'World']['Year'].max(),
-                    y=df[df['Entity'] == 'World']['temperature_anomaly'].max(),
-                    xref="x",
-                    yref="y",
-                    text="Maximum mondial",
-                    showarrow=True,
-                    arrowhead=7,
-                    ax=0,
-                    ay=-40
-                )
-            ]
+        apply_common_plotly_layout_updates(
+             fig_land,
+             xaxis_is_date=True, # Appliquer la config date
+             title="Anomalies de température annuelles<br><sup>Différence par rapport à la moyenne 1991-2020</sup>", # Titre spécifique conservé dans la figure
+             title_x=0.0, title_y=0.98, title_font=dict(size=16),
+             xaxis_title="Année",
+             yaxis_title="Anomalies de température (°C)",
+             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5), # Position spécifique de la légende
+             annotations=[ # Annotations spécifiques
+                 dict(x=country_data_filtered[country_data_filtered['Entity'] == 'World']['Year'].max(),
+                      y=country_data_filtered[country_data_filtered['Entity'] == 'World']['temperature_anomaly'].max(),
+                      xref="x", yref="y", text="Maximum mondial", showarrow=True, arrowhead=7, ax=0, ay=-40)
+             ],
+             margin=dict(t=100, b=60, l=80, r=40) # Ajuster la marge haute pour le titre long
         )
-        # Affichage du graphique avec Streamlit
-        st.plotly_chart(fig)
 
-    except Exception as e:
-        print(f"Une erreur s'est produite : {e}")
+        st.plotly_chart(fig_land, use_container_width=True)
+    else:
+        st.warning("Aucune donnée filtrée disponible pour afficher le graphique terrestre (OWID).")
+else:
+    st.warning("Impossible d'afficher le graphique terrestre (OWID) car les données n'ont pas été chargées.")
 
-# Chemin du fichier CSV
-filepath_troisieme = "https://ourworldindata.org/grapher/annual-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true"
-# Appel de la fonction pour créer le graphique
-create_temperature_graph(filepath_troisieme)
-
-# --- Quatrième graphique (carte mondiale animée) ---
-# Lecture des données depuis une URL.
-df_carte = pd.read_csv(
-    "https://ourworldindata.org/grapher/annual-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true",
-    storage_options={'User-Agent': 'Our World In Data data fetch/1.0'}
-)
-
-# Convertir la colonne 'Year' en numérique
-df_carte['Year'] = pd.to_numeric(df_carte['Year'], errors='coerce')
-
-# Création de la carte mondiale animée avec Plotly Express
-fig_carte = px.choropleth(
-    df_carte,
-    locations="Code",
-    color="temperature_anomaly",
-    hover_name="Entity",
-    animation_frame="Year",
-    range_color=[-2, 2],
-    labels={'temperature_anomaly': 'Anomalie de température (°C)', 'Year': 'Année'},
-    color_continuous_scale="RdBu_r",
-    projection="natural earth"
-)
-
-# Mise à jour de la mise en page
-fig_carte.update_layout(
-    geo=dict(
-        showframe=False,
-        showcoastlines=True,
-        coastlinecolor="RebeccaPurple",
-        showland=True,
-        landcolor="LightGray",
-        showocean=True,
-        oceancolor="LightBlue"
-    ),
-    title=dict(
-        text="<b>Anomalies de Température Annuelles</b><br><sup>Différence par rapport à la moyenne 1991-2020</sup>",
-        x=0.45,
-        y=0.95,
-        xanchor='center',
-        font=dict(size=24, family="Arial")
-    ),
-    coloraxis_colorbar=dict(
-        title=dict(
-            text="Anomalie (°C)",
-            font=dict(size=16)
-        ),
-        thicknessmode="pixels",
-        thickness=20,
-        len=0.7,
-        yanchor="top",
-        y=0.9,
-        tickfont=dict(size=14)
-    ),
-    margin=dict(r=0, t=80, l=0, b=0),
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0)'
-)
-
-# Ajout de bordures aux pays sur la carte.
-fig_carte.update_traces(marker_line_width=0.5, marker_line_color="DarkSlateGrey")
-
-# Affichage du graphique avec Streamlit
-st.plotly_chart(fig_carte)
 
 st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
-Les deux graphiques utilisent la même source de données. <br>
-Ils montrent la différence entre la température moyenne de surface d'une année et la moyenne de 1991 à 2020, en degrés Celsius. <br>
-<br>
+Ce graphique montre la différence entre la température moyenne de surface de la terre d'une année et la moyenne de 1991 à 2020, en degrés Celsius.
+Il inclut les données pour le Monde et certains pays pour comparaison.
 """, unsafe_allow_html=True)
 
-# Cinquième graphique
+
+# --- Quatrième graphique: Carte mondiale animée des anomalies de température ---
+st.subheader("Carte mondiale animée des anomalies de température")
+st.markdown("Cette carte visualise les anomalies de température par pays au fil du temps.")
+
+# Utiliser le dataframe déjà chargé df_land_temp
+if not df_land_temp.empty:
+    df_carte = df_land_temp.copy() # Utiliser une copie si on modifie le df
+
+    fig_carte = px.choropleth(
+        df_carte,
+        locations="Code",
+        color="temperature_anomaly",
+        hover_name="Entity",
+        animation_frame="Year",
+        range_color=[-2, 2],
+        labels={'temperature_anomaly': 'Anomalie de température (°C)', 'Year': 'Année'},
+        color_continuous_scale="RdBu_r",
+        projection="natural earth"
+    )
+
+    # La mise en page des cartes est très spécifique, donc moins de réutilisation de la helper commune
+    fig_carte.update_layout(
+        title=dict(
+            text="<b>Anomalies de Température Annuelles</b><br><sup>Différence par rapport à la moyenne 1991-2020</sup>",
+            x=0.5, y=0.95, xanchor='center', font=dict(size=20, family="Arial") # Centrer le titre de la carte
+        ),
+        geo=dict(
+            showframe=False, showcoastlines=True, coastlinecolor="RebeccaPurple",
+            showland=True, landcolor="LightGray", showocean=True, oceancolor="LightBlue"
+        ),
+        coloraxis_colorbar=dict(
+            title=dict(text="Anomalie (°C)", font=dict(size=14)),
+            thicknessmode="pixels", thickness=20, len=0.7, yanchor="top", y=0.9, tickfont=dict(size=12)
+        ),
+        margin=dict(r=0, t=80, l=0, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        # height=600 # Streamlit gère la hauteur avec use_container_width
+    )
+
+    fig_carte.update_traces(marker_line_width=0.5, marker_line_color="DarkSlateGrey")
+
+    st.plotly_chart(fig_carte, use_container_width=True)
+else:
+     st.warning("Impossible d'afficher la carte animée des températures car les données n'ont pas été chargées.")
+
+st.caption("Source : https://ourworldindata.org/")
+st.markdown("""
+Cette carte mondiale animée montre l'évolution de la différence entre la température moyenne de surface d'une année et la moyenne de 1991 à 2020, en degrés Celsius, par pays.
+""", unsafe_allow_html=True)
 
 
+# --- Section Analyse des émissions de CO2 ---
 st.title("Analyse des émissions de CO2 mondiales")
 st.write("Visualisation des données sur les émissions de CO2 provenant de Our World in Data.")
 
-# URL brute du fichier CSV dans GitHub
-url = 'https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv'
- 
-# Charger le fichier CSV dans un DataFrame
-df = pd.read_csv(url)
- 
-# Filtrer les données pour ne garder que les colonnes nécessaires et supprimer les lignes avec des valeurs manquantes
-df_filtered = df[['country', 'year', 'co2_per_capita']].dropna(subset=['co2_per_capita'])
- 
-# Filtrer pour inclure uniquement les données à partir de l'année 1900
-df_filtered = df_filtered[df_filtered['year'] >= 1900]
- 
-# Trier les données par année pour garantir l'ordre croissant
-df_filtered = df_filtered.sort_values(by='year')
- 
-# Créer le graphique interactif avec Plotly Express
-fig = px.choropleth(df_filtered,
-                    locations="country",
-                    locationmode="country names",
-                    color="co2_per_capita",
-                    hover_name="country",
-                    animation_frame="year",
-                    range_color=[0, 20],  # Ajuster la plage de couleurs selon vos besoins
-                    color_continuous_scale="Viridis",
-                    projection="natural earth",
-                    title="Évolution du CO2 per capita par pays")
- 
-# Afficher le graphique
-st.plotly_chart(fig)
+# Charger les données CO2 une seule fois pour cette section
+df_co2_countries = load_co2_data(URL_CO2_DATA) # Contient les pays filtrés
+df_co2_regions = load_co2_data_with_regions(URL_CO2_DATA) # Contient monde et continents
+
+
+# --- Cinquième graphique: Évolution du CO2 per capita (Carte animée) ---
+st.subheader("Évolution du CO2 per capita par pays")
+st.markdown("Cette carte montre l’évolution des émissions de CO2 par habitant par pays depuis 1900.")
+
+if not df_co2_countries.empty:
+    df_filtered_co2_pc_map = df_co2_countries[df_co2_countries['year'] >= 1900].dropna(subset=['co2_per_capita']).copy()
+
+    if not df_filtered_co2_pc_map.empty:
+        fig_co2_pc_map = px.choropleth(
+            df_filtered_co2_pc_map,
+            locations="country",
+            locationmode="country names",
+            color="co2_per_capita",
+            hover_name="country",
+            animation_frame="year",
+            range_color=[0, df_filtered_co2_pc_map['co2_per_capita'].quantile(0.95)], # Ajuster la plage de couleurs dynamiquement
+            color_continuous_scale="Viridis",
+            projection="natural earth",
+            # title="Évolution du CO2 per capita par pays" # Titre dans subheader
+        )
+
+        fig_co2_pc_map.update_layout(
+            title=None, # Titre dans subheader
+            geo=dict(showframe=False, showcoastlines=False), # Mise en page géographique simplifiée
+            coloraxis_colorbar=dict(title="CO2/hab (Tonnes)"),
+            margin=dict(r=0, t=40, l=0, b=0) # Ajuster marges
+        )
+
+        st.plotly_chart(fig_co2_pc_map, use_container_width=True)
+    else:
+        st.warning("Aucune donnée filtrée suffisante (après 1900) pour afficher la carte du CO2 par habitant.")
+else:
+    st.warning("Impossible d'afficher la carte du CO2 par habitant car les données n'ont pas été chargées.")
+
 
 st.caption("Source : https://ourworldindata.org/")
-           
 st.markdown("""
 Ce graphique montre l’évolution des émissions de CO2 par pays par habitant au cours du temps. <br>
 On voit que les émissions ont beaucoup évolué au cours du temps mais que la majorité concerne l’hémisphère nord. <br>
@@ -371,84 +414,36 @@ Les pays occidentaux ont longtemps été en tête puis une augmentation se voit 
 Saoudite qui à la plus forte émission par habitant. <br>
 """, unsafe_allow_html=True)
 
+# --- Sixième graphique: Émissions totales de CO2 (Carte animée) ---
+st.subheader("Émissions mondiales de CO2 par pays au fil du temps (depuis 1950)")
+st.markdown("Cette carte montre l'évolution des émissions annuelles *totales* de CO2 par pays depuis 1950.")
 
+if not df_co2_countries.empty:
+    world_co2_data_map = df_co2_countries.loc[df_co2_countries['year'] >= 1950].copy()
 
-# sixième graphique
+    if not world_co2_data_map.empty:
+        fig_co2_map_total = px.choropleth(
+            world_co2_data_map, locations='iso_code', color='co2', animation_frame='year',
+            hover_name='country', color_continuous_scale='pubu', projection='natural earth',
+            # title='Émissions mondiales de CO2 (en Mt)', # Titre dans subheader
+            range_color=(0, world_co2_data_map['co2'].quantile(0.95)) # Utiliser un quantile
+        )
 
-# Configuration de la page Streamlit
-# st.set_page_config(layout="wide", page_title="Analyse des émissions de CO2 mondiales")
+        fig_co2_map_total.update_layout(
+            title=None, # Titre dans subheader
+            geo=dict(showframe=False, showcoastlines=False), # Mise en page géographique simplifiée
+            coloraxis_colorbar=dict(title="CO2 (Mt)"),
+            margin=dict(r=0, t=40, l=0, b=0), # Ajuster marges
+            height=600 # Peut aider à fixer la hauteur pour les cartes animées
+        )
 
-
-# URL brute du fichier CSV dans GitHub
-url = 'https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv'
-
-# Utilisation de st.cache_data pour mettre en cache le chargement et le prétraitement des données
-@st.cache_data
-def load_and_preprocess_data(url):
-    """Charge les données et effectue un prétraitement initial."""
-    df = pd.read_csv(url)
-
-    # Colonnes à garder dans le fichier
-    colonnes_a_garder = ['country', 'year', 'iso_code', 'population', 'gdp',
-                         'co2', 'co2_per_capita',
-                         'methane', 'nitrous_oxide',
-                         'cumulative_gas_co2', 'cumulative_oil_co2','cumulative_flaring_co2','cumulative_coal_co2','cumulative_other_co2',
-                         'temperature_change_from_ch4', 'temperature_change_from_co2',
-                         'temperature_change_from_ghg', 'temperature_change_from_n2o']
-    df = df[colonnes_a_garder].copy()
-
-    # Les pays (lignes) à retirer du fichier (Pays qui n'en sont pas en fait !)
-    A_retirer = ['Africa (GCP)', 'Asia (GCP)',
-           'Asia (excl. China and India)', 'Central America (GCP)',
-           'Europe (GCP)', 'Europe (excl. EU-27)', 'Europe (excl. EU-28)',
-           'European Union (27)', 'European Union (28)',
-           'High-income countries',
-           'International aviation', 'International shipping',
-           'International transport','Kuwaiti Oil Fires', 'Kuwaiti Oil Fires (GCP)',
-           'Least developed countries (Jones et al. 2023)',
-           'Low-income countries', 'Lower-middle-income countries',
-           'Middle East (GCP)', 'Non-OECD (GCP)',
-           'North America (GCP)', 'North America (excl. USA)', 'OECD (GCP)',
-           'OECD (Jones et al.)', 'Oceania (GCP)',
-           'Ryukyu Islands (GCP)',
-           'South America (GCP)',
-           'Upper-middle-income countries']
-    df = df.loc[~df['country'].isin(A_retirer)]
-
-    return df
-
-# Chargement des données
-df = load_and_preprocess_data(url)
-
-# Filtrer les données pour les cartes choroplèthes (souvent moins de données anciennes)
-world_co2_data = df.loc[df['year'] >= 1950].copy() # Utiliser .copy() pour éviter SettingWithCopyWarning
-
-### Émission mondiale de CO2 (Carte choroplèthe) ###
-st.header("Émissions mondiales de CO2 par pays au fil du temps")
-st.write("Cette carte montre l'évolution des émissions annuelles de CO2 par pays depuis 1950.")
-
-if not world_co2_data.empty:
-    fig_co2_map = px.choropleth(world_co2_data, locations='iso_code', color='co2',
-                                animation_frame='year',
-                                hover_name='country',
-                                color_continuous_scale='pubu',
-                                projection='natural earth',
-                                title='Émissions mondiales de CO2 (en Mt)',
-                                range_color=(0, world_co2_data['co2'].quantile(0.95))) # Utiliser un quantile pour une meilleure visualisation
-
-    fig_co2_map.update_layout(geo=dict(showframe=False, showcoastlines=False),
-                              title=dict(x=0.5, font=dict(size=20)),
-                              height=600) # Ajuster la hauteur pour Streamlit
-    fig_co2_map.update_coloraxes(colorbar=dict(x=1, y=0.5, len=1, tickfont=dict(size=10), title="CO2 (Mt)"))
-
-
-  
-    st.plotly_chart(fig_co2_map, use_container_width=True)
+        st.plotly_chart(fig_co2_map_total, use_container_width=True)
+    else:
+        st.warning("Aucune donnée filtrée suffisante (depuis 1950) pour afficher la carte des émissions de CO2.")
 else:
-    st.warning("Aucune donnée disponible pour afficher la carte des émissions de CO2.")
+    st.warning("Impossible d'afficher la carte des émissions de CO2 car les données n'ont pas été chargées.")
 
 st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
 En observant la carte interactive, nous pouvons remarquer que les émissions de CO2 ont augmenté de manière constante depuis 1950. <br>
 Les pays ayant les émissions les plus élevées sont les États-Unis, la Chine, l'Inde, la Russie et le Japon. <br>
@@ -462,275 +457,259 @@ L'Amérique du Nord, l'Europe et l'Asie ont des émissions plus élevées que l'
 Cela peut être dû à des facteurs tels que les niveaux de développement économique, les politiques environnementales et les sources d'énergie employées. <br>
 """, unsafe_allow_html=True)
 
-# Neuvième graphique
-### Émission mondiale de CO2 par habitant (Carte choroplèthe) ###
-st.header("Émissions mondiales de CO2 par habitant au fil du temps")
-st.write("Cette carte montre l'évolution des émissions annuelles de CO2 par habitant par pays depuis 1950.")
 
-if not world_co2_data.empty:
-    fig_co2_per_capita_map = px.choropleth(world_co2_data, locations='iso_code', color='co2_per_capita',
-                                           animation_frame='year',
-                                           hover_name='country',
-                                           color_continuous_scale='pubu',
-                                           projection='natural earth',
-                                           title='Émission mondiale de CO2 par habitant (en tonnes)',
-                                           range_color=(0, world_co2_data['co2_per_capita'].quantile(0.95))) # Utiliser un quantile
+# --- Utiliser le dataframe avec régions pour les graphiques continentaux ---
 
-    fig_co2_per_capita_map.update_layout(geo=dict(showframe=False, showcoastlines=False),
-                                        title=dict(x=0.5, font=dict(size=20)),
-                                        height=600)
-    fig_co2_per_capita_map.update_coloraxes(colorbar=dict(x=1, y=0.5, len=1, tickfont=dict(size=10), title="CO2 (Tonnes)"))
+# Septième graphique: Émissions totales de CO2 par continent (Bar plot)
+st.subheader("Émissions totales cumulées de CO2 par continent (1950-2023)")
+st.write("Ce graphique montre la somme des émissions annuelles de CO2 par continent sur la période 1950-2023.")
 
-    st.plotly_chart(fig_co2_per_capita_map, use_container_width=True)
+if not df_co2_regions.empty:
+    # Filtrer pour les continents et les années >= 1950
+    df_continent_filtered_total = df_co2_regions.loc[
+        (df_co2_regions['country'].isin(['Asia', 'Europe', 'Africa', 'North America', 'Oceania', 'South America'])) &
+        (df_co2_regions['year'] >= 1950)
+    ].copy()
+
+    if not df_continent_filtered_total.empty:
+        df_continent_sum_total = df_continent_filtered_total.groupby('country')['co2'].sum().reset_index()
+
+        fig_continent_bar_total, ax_continent_bar_total = plt.subplots(figsize=(10, 6))
+        sns.barplot(x='country', y='co2', data=df_continent_sum_total.sort_values('co2', ascending=False), ax=ax_continent_bar_total, palette='viridis') # Trier et ajouter palette
+        ax_continent_bar_total.set_title('Émissions totales cumulées de CO₂ (Mt) par continent (1950-2023)') # Titre conservé dans Matplotlib
+        ax_continent_bar_total.set_xlabel('Continent')
+        ax_continent_bar_total.set_ylabel('Émissions de CO₂ (Mt)')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+
+        st.pyplot(fig_continent_bar_total)
+    else:
+         st.warning("Aucune donnée filtrée suffisante (continents depuis 1950) pour afficher le graphique à barres.")
 else:
-     st.warning("Aucune donnée disponible pour afficher la carte des émissions de CO2 par habitant.")
+     st.warning("Impossible d'afficher le graphique à barres par continent car les données n'ont pas été chargées.")
+
 
 st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
-En observant la carte interactive des émissions de CO2 par habitant de 1950 à 2023, nous pouvons remarquer rapidement que les pays ayant les émissions <br>
-de CO2 par habitant les plus élevées sont les États-Unis, le Canada, l'Australie, mais aussi - il vaut mieux zoomer pour les voir - les pays du golf <br>
-persique (Qatar, Koweït, Emirats Arabes Unis, Oman et Arabie saoudite). Cependant, si l'on compare les émissions de CO2 par habitant entre les pays <br>
-à différents moments du temps, il est également possible de voir des changements importants. Par exemple, nous pouvons constater que certains pays <br>
-ont réduit leurs émissions de CO2 par habitant au fil du temps (ex: UK, Allemagne, Belgique, France) . Cette baisse peut être due à des efforts pour <br>
-favoriser la production d'énergie renouvelable et réduire la consommation d'énergie fossile. <br>
-<br>
-En revanche, certaines régions ont connu une augmentation rapide de leurs émissions de CO2 par habitant au cours des dernières décennies. <br>
-C'est le cas notamment de l'Asie, où plusieurs économies en développement ont connu une croissance rapide de leur émission de CO2 par habitant <br>
-depuis les années 1980. Cette évolution reflète une industrialisation rapide et une croissance économique rapide dans la région. <br>
-<br>
-Cependant, si l'on compare les émissions de CO2 par habitant des différentes régions du monde, on peut noter que l'Amérique du Nord, l'Europe et l'Asie <br>
-ont tendance à avoir des émissions de CO2 par habitant plus élevées que d'autres régions, du moins jusqu'à récemment. Le niveau de développement <br>
-économique, les modes de consommation, les habitudes de transport, la composition de l'énergie et les politiques environnementales sont <br>
-des facteurs qui peuvent expliquer ces différences régionales. <br>
+Ce graphique nous montre bien que l'Asie, l'Europe et l'Amérique du Nord sont les continents émettant le plus d'émissions de CO2 de 1950 à 2023, <br>
+au moins 5 à 6 fois plus que l'Afrique, l'Océanie et l'Amérique du Sud en cumulé. <br>
 """, unsafe_allow_html=True)
 
 
-# septième graphique
-### Émissions de CO2 par continent (Bar plot) ###
-st.header("Émissions totales de CO2 par continent (1950-2023)")
-st.write("Ce graphique montre la somme des émissions de CO2 par continent sur la période sélectionnée pour la carte.")
+# Huitième graphique: Émissions de CO2 par continent au fil du temps (Line plot)
+st.subheader("Émissions de CO2 par continent au fil du temps (depuis 1750)")
+st.write("Ce graphique montre l'évolution annuelle des émissions totales de CO2 pour chaque continent depuis 1750.")
 
-a_garder_continents = ['Europe', 'Asia', 'Africa', 'North America', 'Oceania', 'South America']
-# Filtrer les données pour n'inclure que les continents et les années >= 1950
-df_continent_filtered = world_co2_data.loc[world_co2_data['country'].isin(a_garder_continents)].copy()
+if not df_co2_regions.empty:
+    # Filtrer pour les continents, toutes les années disponibles
+    df_continent_all_years_line = df_co2_regions.loc[
+        df_co2_regions['country'].isin(['Asia', 'Europe', 'Africa', 'North America', 'Oceania', 'South America'])
+    ].copy()
 
-if not df_continent_filtered.empty:
-    df_continent_sum = df_continent_filtered.groupby('country')['co2'].sum().reset_index()
+    if not df_continent_all_years_line.empty:
+        fig_continent_line_total, ax_continent_line_total = plt.subplots(figsize=(12, 7))
+        sns.lineplot(data=df_continent_all_years_line, x='year', y='co2', hue='country', ax=ax_continent_line_total)
+        ax_continent_line_total.set_title('Émissions de CO₂ (Mt) par continent et par année (1750-2023)') # Titre conservé dans Matplotlib
+        ax_continent_line_total.set_xlabel('Année')
+        ax_continent_line_total.set_ylabel('Émissions de CO₂ (Mt)')
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.tight_layout()
 
-    # Créer explicitement la figure et les axes Matplotlib
-    fig_continent_bar, ax_continent_bar = plt.subplots(figsize=(10, 6)) # Ajuster la taille
-
-    sns.barplot(x='country', y='co2', data=df_continent_sum, ax=ax_continent_bar)
-    ax_continent_bar.set_title('Émissions totales de CO₂ (Mt) par continent (1950-2023)')
-    ax_continent_bar.set_xlabel('Continent')
-    ax_continent_bar.set_ylabel('Émissions de CO₂ (Mt)')
-    plt.xticks(rotation=45, ha='right') # Incliner les étiquettes de l'axe x
-    plt.tight_layout() # Ajuster la mise en page
-
-    st.pyplot(fig_continent_bar)
+        st.pyplot(fig_continent_line_total)
+    else:
+        st.warning("Aucune donnée filtrée suffisante (continents depuis 1750) pour afficher le graphique linéaire.")
 else:
-     st.warning("Aucune donnée disponible pour afficher le graphique à barres par continent.")
+     st.warning("Impossible d'afficher le graphique linéaire par continent car les données n'ont pas été chargées.")
 
 st.caption("Source : https://ourworldindata.org/")
-
-st.markdown("""
-Ce graphique nous montre bien que l'Asie, l'Europe et l'Asie sont les continents émettant le plus d'émissions de CO2 de 1950 à 2023, <br>
-au moins 5 à 6 fois plus que l'Afrique, l'Océanie et l'Amérique du Sud. <br>
-""", unsafe_allow_html=True)
-
-# Huitième graphique
-### Émissions de CO2 par continent au fil du temps (Line plot) ###
-st.header("Émissions de CO2 par continent au fil du temps")
-st.write("Ce graphique montre l'évolution annuelle des émissions de CO2 pour chaque continent depuis 1750.")
-
-# Utiliser le DataFrame original pour avoir les données depuis 1750 si disponibles
-df_continent_all_years = df.loc[df['country'].isin(a_garder_continents)].copy()
-
-if not df_continent_all_years.empty:
-    # Créer explicitement la figure et les axes Matplotlib
-    fig_continent_line, ax_continent_line = plt.subplots(figsize=(12, 7)) # Ajuster la taille
-
-    sns.lineplot(data=df_continent_all_years, x='year', y='co2', hue='country', ax=ax_continent_line)
-    ax_continent_line.set_title('Émissions de CO₂ (Mt) par continent et par année (1750-2023)')
-    ax_continent_line.set_xlabel('Année')
-    ax_continent_line.set_ylabel('Émissions de CO₂ (Mt)')
-    plt.grid(True, linestyle='--', alpha=0.6)
-    plt.tight_layout()
-
-    st.pyplot(fig_continent_line)
-else:
-    st.warning("Aucune donnée disponible pour afficher le graphique linéaire par continent.")
-
-st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
 Ce graphique nous montre bien que l'augmentation des émissions de CO2 est très importante depuis les années 1950, elle est exponentielle pour l'Asie. <br>
 Les émissions de C02 concernant l'Europe et l'Amérique du Nord ont évolué un peu avant les années 1900 (révolution industrielle). Mais on voit qu'elles <br>
 sont en déclin depuis les années 2000 (attention: appartenance réelle des émissions pour l'Asie ?) <br>
 """, unsafe_allow_html=True)
 
-# dixième graphique
-### Émissions de CO2 par habitant par continent (Bar plot) ###
-st.header("Émissions totales de CO2 par habitant par continent (1950-2023)")
-st.write("Ce graphique montre la somme des émissions de CO2 par habitant par continent sur la période sélectionnée pour la carte.")
 
-if not df_continent_filtered.empty:
-    df_co2_per_capita_sum = df_continent_filtered.groupby('country')['co2_per_capita'].sum().reset_index()
+# Neuvième graphique: Émissions de CO2 par habitant par continent (Bar plot)
+st.subheader("Émissions totales cumulées de CO2 par habitant par continent (1950-2023)")
+st.write("Ce graphique montre la somme des émissions annuelles de CO2 par habitant par continent sur la période 1950-2023.")
+# Utiliser le dataframe df_continent_filtered_total déjà filtré pour 1950+
+if not df_continent_filtered_total.empty:
+    df_co2_per_capita_sum_continent = df_continent_filtered_total.groupby('country')['co2_per_capita'].sum().reset_index()
 
-    # Créer explicitement la figure et les axes Matplotlib
-    fig_co2_per_capita_bar, ax_co2_per_capita_bar = plt.subplots(figsize=(10, 6)) # Ajuster la taille
-
-    sns.barplot(x='country', y='co2_per_capita', data=df_co2_per_capita_sum, ax=ax_co2_per_capita_bar)
-    ax_co2_per_capita_bar.set_title('Émissions totales de CO₂ par habitant par continent (1950-2023)')
-    ax_co2_per_capita_bar.set_xlabel('Continent')
-    ax_co2_per_capita_bar.set_ylabel('Émissions de CO₂ par habitant (Tonnes)')
-    plt.xticks(rotation=45, ha='right') # Incliner les étiquettes de l'axe x
+    fig_co2_per_capita_bar_continent, ax_co2_per_capita_bar_continent = plt.subplots(figsize=(10, 6))
+    sns.barplot(x='country', y='co2_per_capita', data=df_co2_per_capita_sum_continent.sort_values('co2_per_capita', ascending=False), ax=ax_co2_per_capita_bar_continent, palette='viridis')
+    ax_co2_per_capita_bar_continent.set_title('Émissions totales cumulées de CO₂ par habitant par continent (1950-2023)') # Titre conservé dans Matplotlib
+    ax_co2_per_capita_bar_continent.set_xlabel('Continent')
+    ax_co2_per_capita_bar_continent.set_ylabel('Émissions de CO₂ par habitant (Tonnes)')
+    plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
 
-    st.pyplot(fig_co2_per_capita_bar)
+    st.pyplot(fig_co2_per_capita_bar_continent)
 else:
-    st.warning("Aucune donnée disponible pour afficher le graphique à barres des émissions par habitant par continent.")
+     st.warning("Aucune donnée filtrée suffisante (continents depuis 1950) pour afficher le graphique à barres par habitant.")
+
 
 st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
-Ce graphique nous montre que les Etats-Unis ont les émissions de CO2 par habitant les plus élevées, suivi par l'Océanie et l'Europe entre 1950 et 2023. <br>
-L'Asie a des émissions de CO2 par habitant 5 fois moins importantes que les Etats-Unis. <br>
+Ce graphique nous montre que les continents Amérique du Nord, l'Océanie et l'Europe ont les émissions de CO2 par habitant les plus élevées en cumulé entre 1950 et 2023. <br>
+L'Asie, bien que le plus gros émetteur total, a des émissions de CO2 par habitant cumulées moins importantes que ces 3 continents sur cette période. <br>
 """, unsafe_allow_html=True)
 
-# onzième graphique
-### Émissions de CO2 par habitant par continent au fil du temps (Line plot) ###
-st.header("Émissions de CO2 par habitant par continent au fil du temps")
+# Dixième graphique: Émissions de CO2 par habitant par continent au fil du temps (Line plot)
+st.subheader("Émissions de CO2 par habitant par continent au fil du temps (depuis 1750)")
 st.write("Ce graphique montre l'évolution annuelle des émissions de CO2 par habitant pour chaque continent depuis 1750.")
-
-if not df_continent_all_years.empty:
-    # Créer explicitement la figure et les axes Matplotlib
-    fig_co2_per_capita_line, ax_co2_per_capita_line = plt.subplots(figsize=(12, 7)) # Ajuster la taille
-
-    sns.lineplot(data=df_continent_all_years, x='year', y='co2_per_capita', hue='country', ax=ax_co2_per_capita_line)
-    ax_co2_per_capita_line.set_title('Émissions de CO₂ par habitant par continent et par année (1750-2023)')
-    ax_co2_per_capita_line.set_xlabel('Année')
-    ax_co2_per_capita_line.set_ylabel('Émissions de CO₂ par habitant (Tonnes)')
+# Utiliser le dataframe df_continent_all_years_line déjà filtré pour les continents, toutes années
+if not df_continent_all_years_line.empty:
+    fig_co2_per_capita_line_continent, ax_co2_per_capita_line_continent = plt.subplots(figsize=(12, 7))
+    sns.lineplot(data=df_continent_all_years_line, x='year', y='co2_per_capita', hue='country', ax=ax_co2_per_capita_line_continent)
+    ax_co2_per_capita_line_continent.set_title('Émissions de CO₂ par habitant par continent et par année (1750-2023)') # Titre conservé dans Matplotlib
+    ax_co2_per_capita_line_continent.set_xlabel('Année')
+    ax_co2_per_capita_line_continent.set_ylabel('Émissions de CO₂ par habitant (Tonnes)')
     plt.grid(True, linestyle='--', alpha=0.6)
     plt.tight_layout()
 
-    st.pyplot(fig_co2_per_capita_line)
+    st.pyplot(fig_co2_per_capita_line_continent)
 else:
-     st.warning("Aucune donnée disponible pour afficher le graphique linéaire des émissions par habitant par continent.")
+     st.warning("Aucune donnée filtrée suffisante (continents depuis 1750) pour afficher le graphique linéaire par habitant.")
 
 st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
-Ce graphique montre bien qu'à partir des années 1850 (fin de l'ère de la révolution industrielle) les émissions de CO2 par habitant ont commencé à exploser aux Etats-Unis <br>
+Ce graphique montre bien qu'à partir des années 1850 (fin de l'ère de la révolution industrielle) les émissions de CO2 par habitant ont commencé à exploser aux Etats-Unis. <br>
 Elles ont atteint leur seuil maximal avant les années 2000 et commence à diminuer depuis les années 2000. La situation est similaire pour l'Europe <br>
-et l'Océanie bien que les taux d'émissions de CO2 par habitant sont moins élevés que pour les Etats-Unis. <br>
+et l'Océanie bien que les taux d'émissions de CO2 par habitant soient moins élevés que pour les Etats-Unis. <br>
 En revanche, concernant l'Asie on remarque une augmentation des émissions de CO2 par habitant à partir des années 1950, cela signifie que l'Asie est <br>
 actuellement en pleine croissance industrielle. <br>
 """, unsafe_allow_html=True)
 
-# douzième graphique
-### Top 15 pays émetteurs de CO2 (Bar plot) ###
-st.header("Top 15 des pays émetteurs de CO2")
+
+# Onzième graphique: Top 15 pays émetteurs de CO2 (Bar plot)
+st.subheader("Top 15 des pays émetteurs de CO2 (Moyenne 1950-2023)")
 st.write("Classement des 15 pays ayant les émissions annuelles moyennes de CO2 les plus élevées sur la période 1950-2023.")
 
-if not world_co2_data.empty:
-    # Choix des top 15 pays les plus polluants (basé sur la moyenne sur la période filtrée)
-    df_moy = world_co2_data.groupby('country')['co2'].mean().reset_index()
+if not df_co2_countries.empty:
+    # Filtrer les données pour la période 1950-2023 pour le calcul de la moyenne
+    df_co2_1950_plus = df_co2_countries[df_co2_countries['year'] >= 1950].copy()
 
-    regions = ['World','Asia','Europe','North America','Africa','South America','Oceania']
-    df_countries_only = df_moy[~df_moy['country'].isin(regions)].copy()
+    if not df_co2_1950_plus.empty:
+        # Calculer la moyenne par pays sur la période
+        df_moy_co2 = df_co2_1950_plus.groupby('country')['co2'].mean().reset_index()
 
-    # On enlève les NaN
-    df_countries_only = df_countries_only.dropna(subset=['co2'])
+        # On enlève les NaN et trie
+        df_countries_only_co2 = df_moy_co2.dropna(subset=['co2'])
 
-    # On trie et garde les 15 premiers
-    top_15_mean_emitters = df_countries_only.sort_values(by='co2', ascending=False).head(15).copy()
+        # On trie et garde les 15 premiers
+        top_15_mean_emitters_co2 = df_countries_only_co2.sort_values(by='co2', ascending=False).head(15).copy()
 
-    # Création du graphique interactif
-    fig_top15_bar = px.bar(top_15_mean_emitters.sort_values(by='co2', ascending=True), # Pour ordre croissant en vertical
-       x='co2',
-       y='country',
-       orientation='h',
-       title='Top 15 des pays émetteurs de CO₂ (Moyenne 1950-2023)',
-       labels={'co2': 'Émissions de CO₂ (Mt)', 'country': 'Pays'},
-       color='co2',
-       color_continuous_scale='reds')
+        if not top_15_mean_emitters_co2.empty:
+            fig_top15_bar_co2 = px.bar(
+                top_15_mean_emitters_co2.sort_values(by='co2', ascending=True), # Pour ordre croissant en vertical
+                x='co2',
+                y='country',
+                orientation='h',
+                # title='Top 15 des pays émetteurs de CO₂ (Moyenne 1950-2023)', # Titre dans subheader
+                labels={'co2': 'Émissions de CO₂ (Mt)', 'country': 'Pays'},
+                color='co2', # Colorer par valeur d'émission
+                color_continuous_scale='reds',
+                title=None # Titre dans subheader
+            )
 
-    # Mise à jour de la mise en page
-    fig_top15_bar.update_layout(template='plotly_white',
-                       height=600,
-                       margin=dict(l=150, r=50, t=50, b=50))
+            # Pas besoin de la helper car c'est un bar plot horizontal, mise en page spécifique
+            fig_top15_bar_co2.update_layout(
+                 template='plotly_white',
+                 height=600,
+                 margin=dict(l=150, r=50, t=50, b=50),
+                 xaxis_title='Émissions de CO₂ (Mt)', # Déplacé ici pour plus de clarté
+                 yaxis_title='Pays' # Déplacé ici
+             )
+            # Les titres des axes sont déjà dans labels et layout, pas besoin de update_xaxes/yaxes ici
 
-    st.plotly_chart(fig_top15_bar, use_container_width=True)
+            st.plotly_chart(fig_top15_bar_co2, use_container_width=True)
+        else:
+            st.warning("Aucune donnée suffisante (après 1950) pour calculer le top 15 des pays émetteurs.")
+    else:
+        st.warning("Aucune donnée disponible dans la période 1950-2023 pour calculer le top 15 des pays émetteurs.")
 else:
-    st.warning("Aucune donnée disponible pour calculer et afficher le top 15 des pays émetteurs.")
+    st.warning("Les données CO2 ne sont pas chargées. Impossible de calculer le top 15.")
+
 
 st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
-On voit bien que les US et la Chine sont de loin les deux plus gros émetteurs de CO2 sur ces dernières années. <br>
+On voit bien que les US et la Chine sont de loin les deux plus gros émetteurs de CO2 sur ces dernières années (en moyenne sur la période 1950-2023). <br>
 """, unsafe_allow_html=True)
 
-# treizième graphique
 
-### Boxplots sur la liste des top 15 émetteurs de CO2 ###
-st.header("Distribution des émissions de CO2 pour les Top 15 pays émetteurs")
+# Douzième graphique: Boxplots sur la liste des top 15 émetteurs de CO2
+st.subheader("Distribution annuelle des émissions de CO2 pour les Top 15 pays émetteurs")
 st.write("Ces boxplots montrent la distribution annuelle des émissions de CO2 pour les 15 pays les plus émetteurs (basé sur la moyenne 1950-2023), depuis 1850.")
 
-# Liste des top 15 pays basée sur la moyenne 1950-2023 calculée ci-dessus
-if 'top_15_mean_emitters' in locals() and not top_15_mean_emitters.empty:
-    top15_countries_list = top_15_mean_emitters['country'].tolist()
-    country_top_boxplot_data = df.loc[df['country'].isin(top15_countries_list)].copy()
-    country_top_boxplot_data = country_top_boxplot_data.loc[country_top_boxplot_data['year'] >= 1850].copy()
+# Utiliser la liste top_15_mean_emitters_co2 calculée précédemment
+if 'top_15_mean_emitters_co2' in locals() and not top_15_mean_emitters_co2.empty:
+    top15_countries_list_co2 = top_15_mean_emitters_co2['country'].tolist()
 
-    if not country_top_boxplot_data.empty:
-        fig_boxplot = px.box(country_top_boxplot_data, x="country", y="co2", hover_data=["year"],
-                             title="Boxplots des émissions de CO2 depuis 1850 - Top 15 pays émetteurs")
-        fig_boxplot.update_layout(xaxis_title="Pays",
-                                  yaxis_title="Émissions CO2 (Mt)",
-                                  height=600,
-                                  margin=dict(l=50, r=50, t=50, b=50)) # Ajuster les marges si nécessaire
+    # Filtrer le dataframe CO2 complet pour ces pays depuis 1850
+    country_top_boxplot_data_co2 = df_co2_countries.loc[
+        (df_co2_countries['country'].isin(top15_countries_list_co2)) &
+        (df_co2_countries['year'] >= 1850)
+    ].copy()
 
-        st.plotly_chart(fig_boxplot, use_container_width=True)
+    if not country_top_boxplot_data_co2.empty:
+        fig_boxplot_co2 = px.box(
+            country_top_boxplot_data_co2, x="country", y="co2", hover_data=["year"],
+            # title="Boxplots des émissions de CO2 depuis 1850 - Top 15 pays émetteurs" # Titre dans subheader
+        )
+
+        apply_common_plotly_layout_updates(
+            fig_boxplot_co2,
+            title=None, # Titre dans subheader
+            xaxis_title="Pays",
+            yaxis_title="Émissions CO2 (Mt)",
+            # Les boxplots n'utilisent généralement pas rangeslider/rangeselector
+            # margin=dict(l=50, r=50, t=50, b=50) # Marges ajustées par helper
+        )
+
+        st.plotly_chart(fig_boxplot_co2, use_container_width=True)
     else:
          st.warning("Aucune donnée suffisante depuis 1850 pour les top 15 pays afin d'afficher les boxplots.")
 else:
-    st.warning("Le calcul du top 15 des pays n'a pas abouti. Impossible d'afficher les boxplots.")
+    st.warning("Le top 15 des pays émetteurs n'a pas été calculé. Impossible d'afficher les boxplots.")
 
 st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
-Les boxplots nous permettent ici de juger la cohérence de nos données. <br>
-Ils mettent en évidence que les Etats-Unis sont de gros emetteurs, et depuis longtemps, tandis qu'on voit que les valeurs pour la Chine ont beaucoup <br>
-evolué. <br>
+Les boxplots nous permettent ici de juger la distribution annuelle des émissions pour ces pays. <br>
+Ils mettent en évidence que les États-Unis sont de gros émetteurs, et depuis longtemps, tandis qu'on voit que la distribution pour la Chine a beaucoup <br>
+évolué, avec une forte augmentation des émissions annuelles au fil du temps. <br>
 """, unsafe_allow_html=True)
 
-# quatorzième graphique
-### Émissions de CO2 des top 15 émetteurs au fil du temps (Line plot) ###
-st.header("Émissions de CO2 des Top 15 pays émetteurs au fil du temps")
-st.write("Ce graphique montre l'évolution annuelle des émissions de CO2 pour les 15 pays les plus émetteurs (basé sur la moyenne 1950-2023), depuis 1850.")
+
+# Treizième graphique: Émissions de CO2 des top 15 émetteurs au fil du temps (Line plot)
+st.subheader("Émissions de CO2 des Top 15 pays émetteurs au fil du temps (depuis 1850)")
+st.write("Ce graphique montre l'évolution annuelle des émissions totales de CO2 pour les 15 pays les plus émetteurs (basé sur la moyenne 1950-2023), depuis 1850.")
 
 # Utiliser le même DataFrame filtré pour les boxplots
-if 'country_top_boxplot_data' in locals() and not country_top_boxplot_data.empty:
-    fig_top15_line = px.line(
-        country_top_boxplot_data,
+if 'country_top_boxplot_data_co2' in locals() and not country_top_boxplot_data_co2.empty:
+    fig_top15_line_co2 = px.line(
+        country_top_boxplot_data_co2,
         x='year',
         y='co2',
         color='country',
-        title='Émissions de CO₂ des Top 15 pays émetteurs (1850-2023)',
-        labels={'year': 'Année', 'co2': 'Émissions de CO₂ (Mt)'})
+        # title='Émissions de CO₂ des Top 15 pays émetteurs (1850-2023)', # Titre dans subheader
+        labels={'year': 'Année', 'co2': 'Émissions de CO₂ (Mt)'}
+    )
 
-    fig_top15_line.update_layout(template='plotly_white',
-                                 height=600,
-                                 margin=dict(l=50, r=50, t=50, b=50))
+    apply_common_plotly_layout_updates(
+        fig_top15_line_co2,
+        title=None, # Titre dans subheader
+        xaxis_title='Année',
+        yaxis_title='Émissions de CO₂ (Mt)',
+        # xaxis_is_date=False # Année comme entier ici, pas besoin de config date complexe
+        template='plotly_white' # Template spécifique à px.line
+    )
 
-    st.plotly_chart(fig_top15_line, use_container_width=True)
+    st.plotly_chart(fig_top15_line_co2, use_container_width=True)
 else:
      st.warning("Aucune donnée suffisante depuis 1850 pour les top 15 pays afin d'afficher le graphique linéaire.")
 
 st.caption("Source : https://ourworldindata.org/")
-
 st.markdown("""
 Depuis les années 1900, le niveau mondial d'émissions de CO2 a augmenté très rapidement. Cette augmentation s'explique par la croissance économique, <br>
 l'industrialisation et l'augmentation de la population mondiale. <br>
