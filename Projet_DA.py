@@ -366,34 +366,3 @@ Les pays occidentaux ont longtemps été en tête puis une augmentation se voit 
 Saoudite qui à la plus forte émission par habitant. <br>
 """, unsafe_allow_html=True)
 
-# Sixième graphique
-# Chargement des données
-df = pd.read_csv("https://ourworldindata.org/grapher/co2-long-term-concentration.csv?v=1&csvType=full&useColumnShortNames=true", storage_options={'User-Agent': 'Our World In Data data fetch/1.0'})
-df_temp = pd.read_csv("https://ourworldindata.org/grapher/country-level-monthly-temperature-anomalies.csv?v=1&csvType=full&useColumnShortNames=true", storage_options={'User-Agent': 'Our World In Data data fetch/1.0'})
-
-# Filtrage
-df = df[df['Year'] >= 1800]
-df_temp = df_temp[df_temp['Year'] >= 1800]
-
-# Création du graphique
-fig, ax1 = plt.subplots(figsize=(15, 7))
-
-# Axe CO2
-color = 'tab:red'
-ax1.set_xlabel('Année')
-ax1.set_ylabel('Concentration CO2 (ppm)', color=color)
-ax1.plot(df['Year'], df['co2_concentration'], color=color)
-ax1.tick_params(axis='y', labelcolor=color)
-
-# Axe température
-ax2 = ax1.twinx()
-color = 'tab:blue'
-ax2.set_ylabel('Anomalie Température (°C)', color=color)
-ax2.plot(df_temp['Year'], df_temp['Anomaly'], color=color)
-ax2.tick_params(axis='y', labelcolor=color)
-
-plt.title('Concentration de CO2 et Anomalies de Température (1800-2024)')
-plt.grid(True)
-
-# Affichage Streamlit
-st.pyplot(fig)
