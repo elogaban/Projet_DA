@@ -326,7 +326,8 @@ Ils montrent la différence entre la température moyenne de surface d'une anné
 """, unsafe_allow_html=True)
 
 # Cinquième graphique
-entities = [
+
+liste_entites = [
     "Europe",
     "North America",
     "Asia",
@@ -335,13 +336,13 @@ entities = [
 ]
 
 # Filtrer les entités et les années
-df_grouped = df[df['Entity'].isin(entities)].copy()
+df_grouped = df[df['Entity'].isin(liste_entites)].copy()
 df_grouped = df_grouped[df_grouped['Year'] >= 1940]
 
 plt.figure(figsize=(8, 5))
 
 # Create a color palette using tab10
-palette = sns.color_palette("tab10", n_colors=len(entities))
+palette = sns.color_palette("tab10", n_colors=len(liste_entites))
 
 # Fossil fuels and Land Use on the same plot
 sns.lineplot(
@@ -362,7 +363,7 @@ sns.lineplot(
     color='grey' # Using a single color for Land Use
 )
 
-for i, entity in enumerate(entities):
+for i, entity in enumerate(liste_entites):
     sns.lineplot(
         data=df_grouped[df_grouped['Entity'] == entity],
         x='Year',
